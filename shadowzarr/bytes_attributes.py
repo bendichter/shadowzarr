@@ -15,7 +15,7 @@ Zarr convention (https://github.com/catalystneuro/zarr-bytes-attributes):
 - A group or array whose attributes are stored this way registers the
   convention in its "zarr_conventions" attribute, and only such a node is decoded.
 
-It is a companion to the Non-Finite Attributes convention (zarrshadow.non_finite),
+It is a companion to the Non-Finite Attributes convention (shadowzarr.non_finite),
 uses the same escape, and can be applied before or after it.
 
 An attribute that holds text is written as a string, as before; only bytes that

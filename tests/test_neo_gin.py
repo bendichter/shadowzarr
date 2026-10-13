@@ -19,7 +19,7 @@ neo_rawio = pytest.importorskip("neo.rawio")
 
 from neo.rawio.baserawio import BaseRawWithBufferApiIO  # noqa: E402
 
-from zarrshadow import generate_rfs_neo, open_rfs  # noqa: E402
+from shadowzarr import generate_rfs_neo, open_rfs  # noqa: E402
 
 pytestmark = pytest.mark.gin
 
@@ -101,7 +101,7 @@ FILES = {
     ],
 }
 
-# Readers without the buffer description API, whose signals zarrshadow finds through the memory maps NEO
+# Readers without the buffer description API, whose signals shadowzarr finds through the memory maps NEO
 # reads them with. Only virtual_arrays_neo supports these.
 MAPPED_FILES = {
     "BiocamRawIO": [
@@ -284,7 +284,7 @@ def _stream_key(reader, block, seg, stream):
 @pytest.mark.parametrize(("name", "path"), _cases(FILES) + _cases(MAPPED_FILES))
 def test_stream_arrays_match_neo(name, path):
     """Each stream as its own array, holding only its channels, reads the same as through NEO."""
-    from zarrshadow import RfsBuilder, virtual_arrays_neo
+    from shadowzarr import RfsBuilder, virtual_arrays_neo
 
     reader = _reader(name, path)
     arrays = virtual_arrays_neo(reader, chunk_bytes=2**20)
@@ -318,7 +318,7 @@ def test_stream_arrays_match_neo(name, path):
 
 @pytest.mark.parametrize(("name", "path"), [pytest.param(*case, id=case[1]) for case in MAPPED_REFUSED])
 def test_recordings_that_cannot_be_referenced(name, path):
-    from zarrshadow import virtual_arrays_neo
+    from shadowzarr import virtual_arrays_neo
 
     with pytest.raises(NotImplementedError, match=MAPPED_REFUSED[(name, path)]):
         virtual_arrays_neo(_reader(name, path))
@@ -333,8 +333,8 @@ def test_spikeglx_as_virtual_nwb(tmp_path):
     from hdmf_zarr import NWBZarrIO
     from pynwb.ecephys import ElectricalSeries
 
-    from zarrshadow import RfsStore, materialize, virtual_arrays_neo
-    from zarrshadow.nwb import write_virtual_nwb
+    from shadowzarr import RfsStore, materialize, virtual_arrays_neo
+    from shadowzarr.nwb import write_virtual_nwb
 
     reader = _reader("SpikeGLXRawIO", "spikeglx/Noise4Sam_g0")
     arrays = virtual_arrays_neo(reader)

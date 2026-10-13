@@ -10,8 +10,8 @@ from zarr.core.sync import sync
 icechunk = pytest.importorskip("icechunk")
 pytest.importorskip("virtualizarr.parsers.icechunk")
 
-from zarrshadow import RfsBuilder, VirtualArray, generate_rfs, open_rfs, write_rfs  # noqa: E402
-from zarrshadow.icechunk import icechunk_to_rfs, rfs_to_icechunk  # noqa: E402
+from shadowzarr import RfsBuilder, VirtualArray, generate_rfs, open_rfs, write_rfs  # noqa: E402
+from shadowzarr.icechunk import icechunk_to_rfs, rfs_to_icechunk  # noqa: E402
 
 
 @pytest.fixture
@@ -115,13 +115,13 @@ def test_hdf5_round_trip(hdf5, repo, tmp_path):
     _assert_same(open_rfs(back), original)
 
     # and from a directory, whose chunk indexes are read when they are needed
-    write_rfs(rfs, str(tmp_path / "data.zarrshadow"))
+    write_rfs(rfs, str(tmp_path / "data.shadowzarr"))
     other = icechunk.Repository.create(
         icechunk.local_filesystem_storage(str(tmp_path / "other")),
         config=repo.config,
         authorize_virtual_chunk_access={f"file://{tmp_path}/": icechunk.credentials.LocalFileSystemAccess},
     )
-    _assert_same(zarr.open_group(_committed(other, str(tmp_path / "data.zarrshadow")).store, mode="r"), original)
+    _assert_same(zarr.open_group(_committed(other, str(tmp_path / "data.shadowzarr")).store, mode="r"), original)
 
 
 @pytest.fixture
@@ -230,8 +230,8 @@ def test_virtual_nwb_file(repo, tmp_path):
 
     from hdmf_zarr import NWBZarrIO
 
-    from zarrshadow import RfsStore, stack
-    from zarrshadow.nwb import write_virtual_nwb
+    from shadowzarr import RfsStore, stack
+    from shadowzarr.nwb import write_virtual_nwb
 
     rng = np.random.default_rng(2)
     x = rng.integers(-500, 500, (10_000, 16)).astype("<i2")

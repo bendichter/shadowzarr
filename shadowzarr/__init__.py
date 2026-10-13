@@ -5,7 +5,7 @@ from .materialize import materialize
 from .neo_rawio import generate_rfs_neo, virtual_arrays_neo
 from .encoded_attributes import decode_attributes
 from .open_rfs import load_rfs, open_rfs
-from .remfile import ZarrShadowRemfile
+from .remfile import ShadowZarrRemfile
 from .rfs_store import RfsStore
 from .sources import SourceChangedError
 from .tiff import generate_rfs_tiff
@@ -26,7 +26,7 @@ __all__ = [
     "load_rfs",
     "decode_attributes",
     "LocalCache",
-    "ZarrShadowRemfile",
+    "ShadowZarrRemfile",
     "RfsStore",
     "SourceChangedError",
     "add_url_resolver",

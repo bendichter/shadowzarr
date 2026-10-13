@@ -1,8 +1,8 @@
 """Decode the attributes of a node, whichever of the attribute conventions it registers.
 
-zarrshadow writes NaN and infinite attributes following the Non-Finite
-Attributes convention (zarrshadow.non_finite), and bytes following the Bytes
-Attributes convention (zarrshadow.bytes_attributes). The two can be decoded in
+shadowzarr writes NaN and infinite attributes following the Non-Finite
+Attributes convention (shadowzarr.non_finite), and bytes following the Bytes
+Attributes convention (shadowzarr.bytes_attributes). The two can be decoded in
 either order.
 """
 

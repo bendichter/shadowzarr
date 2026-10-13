@@ -1,30 +1,30 @@
-# zarrshadow
+# shadowzarr
 
 Represent remote HDF5 NWB files as Zarr v3 via JSON reference file systems.
 
 ## What it does
 
-zarrshadow reads the metadata and chunk layout of an HDF5 file (local or remote) and produces a small JSON file that describes the same data as a Zarr v3 store. The JSON contains:
+shadowzarr reads the metadata and chunk layout of an HDF5 file (local or remote) and produces a small JSON file that describes the same data as a Zarr v3 store. The JSON contains:
 
 - **Zarr v3 metadata** (`zarr.json` entries for every group and array)
 - **Chunk references** pointing to byte ranges in the original HDF5 file (`[url, offset, size]`)
 - **Inline data** for small datasets (base64-encoded)
 
-When you open this JSON, zarrshadow provides a zarr v3 `Store` that fetches chunks on demand from the remote HDF5 file using HTTP Range requests. No data is copied — the original file is the source of truth.
+When you open this JSON, shadowzarr provides a zarr v3 `Store` that fetches chunks on demand from the remote HDF5 file using HTTP Range requests. No data is copied — the original file is the source of truth.
 
-![A zarrshadow reference file system copies Zarr metadata and small datasets out of the HDF5 file and stores each chunk as a pointer into it](docs/images/store-contents.svg)
+![A shadowzarr reference file system copies Zarr metadata and small datasets out of the HDF5 file and stores each chunk as a pointer into it](docs/images/store-contents.svg)
 
 The metadata and small datasets are copied into the JSON when it is generated. Each chunk is a `[url, offset, size]` pointer into the original file and is fetched with an HTTP range request when it is read. The strip on the right enlarges the first 0.8 MB of the 103 GB file, where `c/0/0` begins right after 10 KB of HDF5 headers. The rest of the file holds more chunks, with more headers and heaps spread through it.
 
 ## How the Packages Fit Together
 
-zarrshadow sits between the libraries that understand source formats and the libraries that read Zarr.
+shadowzarr sits between the libraries that understand source formats and the libraries that read Zarr.
 
-![zarrshadow reads the headers of source files and writes kerchunk references, which zarr-python reads through zarrshadow's store while fetching byte ranges from the source files; materialize turns the references into an ordinary Zarr store; in MATLAB, matzarr indexes MAT files for zarr-matlab](docs/images/ecosystem.svg)
+![shadowzarr reads the headers of source files and writes kerchunk references, which zarr-python reads through shadowzarr's store while fetching byte ranges from the source files; materialize turns the references into an ordinary Zarr store; in MATLAB, matzarr indexes MAT files for zarr-matlab](docs/images/ecosystem.svg)
 
-On the writing side, zarrshadow reads only headers, through h5py, tifffile, and NEO, and writes references in the [kerchunk](https://fsspec.github.io/kerchunk/spec.html) JSON format with Zarr v3 keys. For an NWB file, hdmf-zarr and PyNWB write the file's structure, and NeuroConv can supply the file to write, which is experimental. On the reading side, `RfsStore` is a zarr-python store, so anything built on zarr-python reads the references, including hdmf-zarr's `NWBZarrIO`. A version 1 file is plain kerchunk, which fsspec reads too. A version 2 file, which uses `gen`, `indexes`, or `selections`, needs zarrshadow's store.
+On the writing side, shadowzarr reads only headers, through h5py, tifffile, and NEO, and writes references in the [kerchunk](https://fsspec.github.io/kerchunk/spec.html) JSON format with Zarr v3 keys. For an NWB file, hdmf-zarr and PyNWB write the file's structure, and NeuroConv can supply the file to write, which is experimental. On the reading side, `RfsStore` is a zarr-python store, so anything built on zarr-python reads the references, including hdmf-zarr's `NWBZarrIO`. A version 1 file is plain kerchunk, which fsspec reads too. A version 2 file, which uses `gen`, `indexes`, or `selections`, needs shadowzarr's store.
 
-MATLAB has a parallel path for MAT files. [matzarr](https://github.com/catalystneuro/matzarr) indexes a `.mat` file into Zarr v3 metadata and a `manifest.json`, which the `ManifestStore` of [zarr-matlab](https://github.com/catalystneuro/zarr-matlab) reads, and a script in matzarr translates that index into kerchunk references. zarr-matlab does not read kerchunk references, so the references zarrshadow writes cannot be read from MATLAB as they are.
+MATLAB has a parallel path for MAT files. [matzarr](https://github.com/catalystneuro/matzarr) indexes a `.mat` file into Zarr v3 metadata and a `manifest.json`, which the `ManifestStore` of [zarr-matlab](https://github.com/catalystneuro/zarr-matlab) reads, and a script in matzarr translates that index into kerchunk references. zarr-matlab does not read kerchunk references, so the references shadowzarr writes cannot be read from MATLAB as they are.
 
 `materialize` removes the difference. Its output is an ordinary Zarr v3 store with no references, which zarr-python, zarr-matlab, and zarrita.js all read.
 
@@ -32,7 +32,7 @@ MATLAB has a parallel path for MAT files. [matzarr](https://github.com/catalystn
 
 [Lindi](https://github.com/NeurodataWithoutBorders/lindi) does something similar but targets Zarr v2 and creates an h5py-like shim object for use with `pynwb.NWBHDF5IO`.
 
-zarrshadow instead produces a proper Zarr v3 store, following the [unified convention](https://github.com/NeurodataWithoutBorders/lindi/issues/125) that aligns Lindi and hdmf-zarr. hdmf-zarr adopted this convention in its Zarr v3 release (0.14.0), so a zarrshadow store can be read with `hdmf_zarr.NWBZarrIO` directly, without an h5py shim layer.
+shadowzarr instead produces a proper Zarr v3 store, following the [unified convention](https://github.com/NeurodataWithoutBorders/lindi/issues/125) that aligns Lindi and hdmf-zarr. hdmf-zarr adopted this convention in its Zarr v3 release (0.14.0), so a shadowzarr store can be read with `hdmf_zarr.NWBZarrIO` directly, without an h5py shim layer.
 
 ## Installation
 
@@ -45,22 +45,22 @@ pip install -e .
 ### Generate a reference file system from a remote NWB file
 
 ```python
-from zarrshadow import generate_rfs, write_rfs
+from shadowzarr import generate_rfs, write_rfs
 
 url = "https://api.dandiarchive.org/api/assets/6e7e9b91-0d66-45af-b646-dfb11e4d9967/download/"
 
 rfs = generate_rfs(url)
-write_rfs(rfs, "example.zarrshadow.json")
+write_rfs(rfs, "example.shadowzarr.json")
 ```
 
-Pass the URL, and zarrshadow reads the file's headers over HTTP. h5py walks the index of a chunked dataset one node at a time, and in a file written in pieces those nodes lie throughout the file, so each would cost a request. zarrshadow reads the nodes of such an index ahead, a level at a time and in parallel, when h5py reaches its root. For a 137 GB file on DANDI whose recording has 196,608 chunks, generating references went from more than 15 minutes to 28 seconds.
+Pass the URL, and shadowzarr reads the file's headers over HTTP. h5py walks the index of a chunked dataset one node at a time, and in a file written in pieces those nodes lie throughout the file, so each would cost a request. shadowzarr reads the nodes of such an index ahead, a level at a time and in parallel, when h5py reaches its root. For a 137 GB file on DANDI whose recording has 196,608 chunks, generating references went from more than 15 minutes to 28 seconds.
 
 ### Load the JSON and read data as Zarr v3
 
 ```python
-from zarrshadow import open_rfs
+from shadowzarr import open_rfs
 
-root = open_rfs("example.zarrshadow.json")
+root = open_rfs("example.shadowzarr.json")
 
 # Browse the hierarchy
 print(root.attrs["neurodata_type"])  # 'NWBFile'
@@ -75,13 +75,13 @@ print(spike_times.shape)  # (359781,)
 If you have a local copy but want chunk references to point to a remote URL:
 
 ```python
-from zarrshadow import generate_rfs, write_rfs
+from shadowzarr import generate_rfs, write_rfs
 
 rfs = generate_rfs(
     "https://example.com/data.nwb",
     local_hdf5_path="/path/to/local/data.nwb",
 )
-write_rfs(rfs, "data.zarrshadow.json")
+write_rfs(rfs, "data.shadowzarr.json")
 ```
 
 ### Read as an NWB file with hdmf-zarr
@@ -90,9 +90,9 @@ With hdmf-zarr 0.14.0 or later, pass the store to `NWBZarrIO`:
 
 ```python
 from hdmf_zarr import NWBZarrIO
-from zarrshadow import RfsStore, load_rfs
+from shadowzarr import RfsStore, load_rfs
 
-with NWBZarrIO(RfsStore(load_rfs("example.zarrshadow.json")), mode="r") as io:
+with NWBZarrIO(RfsStore(load_rfs("example.shadowzarr.json")), mode="r") as io:
     nwbfile = io.read()
     print(nwbfile.acquisition)
 ```
@@ -105,8 +105,8 @@ Write to a path that does not end in `.json` to get a directory:
 
 ```python
 rfs = generate_rfs(url)
-write_rfs(rfs, "example.zarrshadow")
-root = open_rfs("example.zarrshadow")  # also accepts a URL to the directory
+write_rfs(rfs, "example.shadowzarr")
+root = open_rfs("example.shadowzarr")  # also accepts a URL to the directory
 ```
 
 ![The same file as a single JSON and as a directory, with the chunk refs of large arrays moved into index arrays](docs/images/json-vs-directory.svg)
@@ -156,7 +156,7 @@ HDF5 stores a dataset that was written without chunking as one contiguous block.
 {"key": "acquisition/timestamps/c/{{i}}", "url": "{{u0}}", "offset": "{{2048 + i * 4194304}}", "length": "4194304", "dimensions": {"i": {"stop": 58}}}
 ```
 
-zarrshadow computes a slab's offset when that chunk is requested. The slab height divides the first axis when a divisor is close to the target, so every slab has the same length. When none does, the last slab is read at full length, and zarr discards the part past the end of the array.
+shadowzarr computes a slab's offset when that chunk is requested. The slab height divides the first axis when a divisor is close to the target, so every slab has the same length. When none does, the last slab is read at full length, and zarr discards the part past the end of the array.
 
 ### Arrays Stored with Other Bytes
 
@@ -166,11 +166,11 @@ Some files store an array together with bytes that do not belong to it. A SpikeG
 "selections": {"imec0.ap": {"record_size": 770, "keep": [[0, 768]]}}
 ```
 
-Every reference of the array is read as consecutive records of `record_size` bytes, here one sample of all 385 int16 channels. From each record the byte ranges in `keep` are taken and joined in the order listed, and the rest is dropped. The Zarr metadata describes only the selected data, a 384-column array with the plain `bytes` codec, so nothing in the codec chain is specific to zarrshadow. Listing several ranges keeps columns that are not next to each other, and listing them in another order reorders the columns. A selection applies to uncompressed data.
+Every reference of the array is read as consecutive records of `record_size` bytes, here one sample of all 385 int16 channels. From each record the byte ranges in `keep` are taken and joined in the order listed, and the rest is dropped. The Zarr metadata describes only the selected data, a 384-column array with the plain `bytes` codec, so nothing in the codec chain is specific to shadowzarr. Listing several ranges keeps columns that are not next to each other, and listing them in another order reorders the columns. A selection applies to uncompressed data.
 
 ```python
-from zarrshadow import RfsBuilder
-from zarrshadow.builder import columns_selection
+from shadowzarr import RfsBuilder
+from shadowzarr.builder import columns_selection
 
 record_size, keep = columns_selection(n_columns=385, itemsize=2, columns=slice(0, 384))
 builder = RfsBuilder()
@@ -186,11 +186,11 @@ A request for part of a chunk reads only the records that hold it, with or witho
 
 ### Detecting Changed Files
 
-A reference is a URL and a byte range, so it would return wrong data without any error if the file it points into were replaced. `generate_rfs` records each file's size and, for remote files, its ETag under `sources`. For DANDI assets these come from the asset metadata, whose `dandi:dandi-etag` is the ETag S3 reports. When reading, zarrshadow sends `If-Match` with every range request so that the server refuses it if the file has changed, compares the total size the server reports, and checks the size of local files. Any mismatch raises `SourceChangedError`. Pass `validate_sources=False` to `open_rfs` to turn the checks off.
+A reference is a URL and a byte range, so it would return wrong data without any error if the file it points into were replaced. `generate_rfs` records each file's size and, for remote files, its ETag under `sources`. For DANDI assets these come from the asset metadata, whose `dandi:dandi-etag` is the ETag S3 reports. When reading, shadowzarr sends `If-Match` with every range request so that the server refuses it if the file has changed, compares the total size the server reports, and checks the size of local files. Any mismatch raises `SourceChangedError`. Pass `validate_sources=False` to `open_rfs` to turn the checks off.
 
 ### MATLAB Files
 
-MATLAB `.mat` files saved with `-v7.3` are HDF5 files with a 512-byte userblock in front, and zarrshadow reads them like any other HDF5 file. HDF5 1.14 and later report chunk offsets from the start of the file, but HDF5 1.10 reports them from the end of the userblock, so `generate_rfs` checks one stored block against the file and corrects the offsets if needed. zarrshadow presents the data as HDF5 stores it: arrays are transposed relative to MATLAB, `char` arrays are UTF-16 codes, and cell arrays are references into `#refs#`. [matzarr](https://github.com/catalystneuro/matzarr) reads the same files from MATLAB with MATLAB semantics.
+MATLAB `.mat` files saved with `-v7.3` are HDF5 files with a 512-byte userblock in front, and shadowzarr reads them like any other HDF5 file. HDF5 1.14 and later report chunk offsets from the start of the file, but HDF5 1.10 reports them from the end of the userblock, so `generate_rfs` checks one stored block against the file and corrects the offsets if needed. shadowzarr presents the data as HDF5 stores it: arrays are transposed relative to MATLAB, `char` arrays are UTF-16 codes, and cell arrays are references into `#refs#`. [matzarr](https://github.com/catalystneuro/matzarr) reads the same files from MATLAB with MATLAB semantics.
 
 ### Example
 
@@ -198,7 +198,7 @@ This file from DANDI has an `ElectricalSeries` of 495,184,000 samples by 160 cha
 
 ```python
 rfs = generate_rfs("https://api.dandiarchive.org/api/assets/5a9cc6f1-aeaf-46cc-aae7-ea27960236ea/download/")
-write_rfs(rfs, "example.zarrshadow")
+write_rfs(rfs, "example.shadowzarr")
 ```
 
 In the single JSON, those 327,680 data chunks are 327,680 entries in `refs`. In the directory, they are one index array at `index/acquisition/ElectricalSeries/data` with shape (2,048, 160, 2), chunked as (409, 160, 2), so it has 6 index chunks of about 320 KB each after compression. Each index chunk covers 409 rows of the data chunk grid for all 160 channels, which is the first 82 minutes of the recording for index chunk 0, the next 82 minutes for index chunk 1, and so on.
@@ -206,7 +206,7 @@ In the single JSON, those 327,680 data chunks are 327,680 entries in `refs`. In 
 To read one second starting one hour in on channel 17:
 
 ```python
-root = open_rfs("example.zarrshadow")
+root = open_rfs("example.shadowzarr")
 data = root["acquisition/ElectricalSeries/data"][72_000_000:72_020_000, 17]
 ```
 
@@ -224,40 +224,40 @@ Pass `chunk_index_threshold=None` to `generate_rfs` to list every chunk in `refs
 
 ## TIFF Files
 
-`generate_rfs_tiff` builds references for a TIFF file with [tifffile](https://github.com/cgohlke/tifffile), which handles strips and tiles, multi-page series, and OME and other pyramids. Install it with `pip install zarrshadow[tiff]`.
+`generate_rfs_tiff` builds references for a TIFF file with [tifffile](https://github.com/cgohlke/tifffile), which handles strips and tiles, multi-page series, and OME and other pyramids. Install it with `pip install shadowzarr[tiff]`.
 
 ```python
-from zarrshadow import generate_rfs_tiff, open_rfs
+from shadowzarr import generate_rfs_tiff, open_rfs
 
 root = open_rfs(generate_rfs_tiff("stack.ome.tif"))
 frame = root["0"][100]      # series 0; a pyramid has its levels at "0/0", "0/1", ...
 ```
 
-Series `i` is stored at path `"i"`, the layout bioformats2raw uses for OME-Zarr. The pages of an uncompressed stack are usually evenly spaced in the file, and then the whole series is one `gen` entry. TIFF deflate and zstd chunks are ordinary zlib and zstd streams, so they get the standard `numcodecs.zlib` and `zstd` codecs, which any Zarr library can decode. Other compressions, such as LZW, JPEG, and the horizontal predictor, use the Zarr codecs from imagecodecs, which zarrshadow registers when it opens such a file. Other readers need imagecodecs too, and browser readers do not have them. Strips that do not divide the image evenly are read one page at a time when the pages are uncompressed and stored in one piece.
+Series `i` is stored at path `"i"`, the layout bioformats2raw uses for OME-Zarr. The pages of an uncompressed stack are usually evenly spaced in the file, and then the whole series is one `gen` entry. TIFF deflate and zstd chunks are ordinary zlib and zstd streams, so they get the standard `numcodecs.zlib` and `zstd` codecs, which any Zarr library can decode. Other compressions, such as LZW, JPEG, and the horizontal predictor, use the Zarr codecs from imagecodecs, which shadowzarr registers when it opens such a file. Other readers need imagecodecs too, and browser readers do not have them. Strips that do not divide the image evenly are read one page at a time when the pages are uncompressed and stored in one piece.
 
 ## Electrophysiology Formats Read by NEO
 
-`generate_rfs_neo` builds references from a [NEO](https://neo.readthedocs.io) raw reader, for the formats whose NEO readers describe where their signals are stored: SpikeGLX, Open Ephys binary, Axon, BrainVision, Elan, Micromed, NeuroNexus, Neuroscope, Multi Channel Systems raw, raw binary, WinEDR, WinWCP, and Maxwell. Install it with `pip install zarrshadow[neo]`.
+`generate_rfs_neo` builds references from a [NEO](https://neo.readthedocs.io) raw reader, for the formats whose NEO readers describe where their signals are stored: SpikeGLX, Open Ephys binary, Axon, BrainVision, Elan, Micromed, NeuroNexus, Neuroscope, Multi Channel Systems raw, raw binary, WinEDR, WinWCP, and Maxwell. Install it with `pip install shadowzarr[neo]`.
 
 ```python
 from neo.rawio import SpikeGLXRawIO
-from zarrshadow import generate_rfs_neo, write_rfs
+from shadowzarr import generate_rfs_neo, write_rfs
 
 reader = SpikeGLXRawIO(dirname="Noise4Sam_g0")
 rfs = generate_rfs_neo(reader, url_for=lambda path: "https://my-bucket/" + path)
-write_rfs(rfs, "Noise4Sam_g0.zarrshadow")
+write_rfs(rfs, "Noise4Sam_g0.shadowzarr")
 ```
 
 Each of NEO's signal buffers becomes one array, time by channel, at `"<buffer id>"` for a recording with one segment and at `"block<b>/segment<s>/<buffer id>"` otherwise. The samples of a raw buffer are evenly spaced in the file, so the whole buffer is one `gen` entry however long the recording is. The array's `neo` attribute lists the streams stored in the buffer, with the columns that belong to each, the sampling rate, `t_start`, and each channel's id, name, units, gain, and offset. `url_for` maps the local paths NEO reads to where the files are hosted.
 
-Continuous integration checks the arrays against NEO's own reads on the recordings NEO tests these readers with, which are hosted on [GIN](https://gin.g-node.org/NeuralEnsemble/ephy_testing_data): 59 recordings across 12 of these formats, with every block, segment, and stream equal. Run the same tests locally with `pytest -m gin`, which downloads about 300 MB with datalad. Maxwell recordings are stored in HDF5 with MaxWell's own compression filter, for which there is no Zarr codec, so only uncompressed Maxwell files can be referenced. When a recording ends partway through its last chunk at the end of the file, that chunk is shorter than the others; zarrshadow pads it, but other Zarr readers will not read it.
+Continuous integration checks the arrays against NEO's own reads on the recordings NEO tests these readers with, which are hosted on [GIN](https://gin.g-node.org/NeuralEnsemble/ephy_testing_data): 59 recordings across 12 of these formats, with every block, segment, and stream equal. Run the same tests locally with `pytest -m gin`, which downloads about 300 MB with datalad. Maxwell recordings are stored in HDF5 with MaxWell's own compression filter, for which there is no Zarr codec, so only uncompressed Maxwell files can be referenced. When a recording ends partway through its last chunk at the end of the file, that chunk is shorter than the others; shadowzarr pads it, but other Zarr readers will not read it.
 
 ## Virtual Arrays
 
 A `VirtualArray` describes an array stored in other files: its shape, data type, and chunking, and where its chunks are. It holds no data. It can be sliced and stacked like an array, and the result is another `VirtualArray` that points at the same bytes.
 
 ```python
-from zarrshadow import RfsBuilder, VirtualArray, stack
+from shadowzarr import RfsBuilder, VirtualArray, stack
 
 raw = VirtualArray.contiguous("run_g0_t0.imec0.ap.bin", shape=[n_samples, 385], dtype="int16")
 neural = raw[:, :384]             # drop the sync channel
@@ -302,14 +302,14 @@ Several of these formats store records of a few hundred samples: 60 or 128 for a
 
 ## Virtual NWB Files
 
-`zarrshadow.nwb` writes an NWB file whose large datasets are references to the acquisition files, so that no signal data is read or copied. Build the `NWBFile` with [pynwb](https://pynwb.readthedocs.io) as usual and give each large dataset a `VirtualArray`'s placeholder as its data. Install with `pip install zarrshadow[nwb]`.
+`shadowzarr.nwb` writes an NWB file whose large datasets are references to the acquisition files, so that no signal data is read or copied. Build the `NWBFile` with [pynwb](https://pynwb.readthedocs.io) as usual and give each large dataset a `VirtualArray`'s placeholder as its data. Install with `pip install shadowzarr[nwb]`.
 
 ```python
 from hdmf_zarr import NWBZarrIO
 from neo.rawio import SpikeGLXRawIO
 from pynwb.ecephys import ElectricalSeries
-from zarrshadow import RfsStore, load_rfs, virtual_arrays_neo
-from zarrshadow.nwb import write_virtual_nwb
+from shadowzarr import RfsStore, load_rfs, virtual_arrays_neo
+from shadowzarr.nwb import write_virtual_nwb
 
 arrays = virtual_arrays_neo(SpikeGLXRawIO(dirname="Noise4Sam_g0"))
 ap = arrays["imec0.ap"]           # 384 neural channels of the 385 in the file
@@ -325,9 +325,9 @@ nwbfile.add_acquisition(
         channel_conversion=ap.attributes["gain"],
     )
 )
-write_virtual_nwb(nwbfile, "session.nwb.zarrshadow")
+write_virtual_nwb(nwbfile, "session.nwb.shadowzarr")
 
-with NWBZarrIO(RfsStore(load_rfs("session.nwb.zarrshadow")), mode="r") as io:
+with NWBZarrIO(RfsStore(load_rfs("session.nwb.shadowzarr")), mode="r") as io:
     nwbfile = io.read()
 ```
 
@@ -337,38 +337,38 @@ The scaling of a series stays in NWB's `conversion`, `offset`, and `channel_conv
 
 ### From NeuroConv
 
-`zarrshadow.neuroconv_bridge.virtualize` takes an NWB file that [NeuroConv](https://neuroconv.readthedocs.io) built in memory and swaps its data iterators for references, so NeuroConv supplies the metadata and the tables, and the signals stay in the source files.
+`shadowzarr.neuroconv_bridge.virtualize` takes an NWB file that [NeuroConv](https://neuroconv.readthedocs.io) built in memory and swaps its data iterators for references, so NeuroConv supplies the metadata and the tables, and the signals stay in the source files.
 
 ```python
 from neuroconv.datainterfaces import SpikeGLXRecordingInterface
-from zarrshadow.neuroconv_bridge import virtualize
-from zarrshadow.nwb import write_virtual_nwb
+from shadowzarr.neuroconv_bridge import virtualize
+from shadowzarr.nwb import write_virtual_nwb
 
 interface = SpikeGLXRecordingInterface(folder_path="Noise4Sam_g0", stream_id="imec0.ap")
 nwbfile = interface.create_nwbfile(metadata=interface.get_metadata())
 virtualize(nwbfile)
-write_virtual_nwb(nwbfile, "session.nwb.zarrshadow")
+write_virtual_nwb(nwbfile, "session.nwb.shadowzarr")
 ```
 
 For electrophysiology it covers recordings that SpikeInterface reads through a NEO reader that `virtual_arrays_neo` supports, and recordings it reads as plain binary files, as it does WhiteMatter and CellExplorer. An array that is a memory map of a file, which is how NeuroConv reads WAV audio, is referenced too. For imaging it covers roiextractors' TIFF extractors (plain TIFF stacks, ScanImage, Thor, Micro-Manager, and Bruker with one file per frame), which keep a table of the page that holds each frame, and its HDF5 extractor. Each TIFF page becomes one chunk, and the frames are transposed into the (frame, width, height) order NeuroConv writes. A Neuralynx recording whose input was inverted, which is the usual setting, is refused: NEO gives it a negative gain, and SpikeInterface then negates the samples it reads, so the file NeuroConv writes holds other values than the recording does. Anything else raises `NotVirtualizable` too: compressed TIFF pages, frames cropped out of a page, Bruker volumes, and readers that do not say where their data is. With `strict=False` those are left for NeuroConv to copy.
 
 Continuous integration compares the result with NeuroConv's own conversion on GIN data, for SpikeGLX (AP band and NIDQ), Open Ephys binary, Neuroscope, MCS raw, Blackrock, SpikeGadgets, Intan, Open Ephys legacy, EDF, MEArec, Biocam, WhiteMatter, CellExplorer, WAV audio, a TIFF stack, ScanImage (single and two channels, planes, and volumes), an HDF5 movie, Bruker, Thor, and Micro-Manager. Every dataset is equal except the file's creation time.
 
-This is experimental. As of October 2026, SpikeInterface requires `zarr<3` and zarrshadow needs Zarr v3, so NeuroConv and zarrshadow install together only with that requirement overridden (`uv pip install --override`), and NeuroConv 0.10 reads `zarr.codec_registry` at import, which Zarr v3 removed. `tests/test_neuroconv_bridge.py` shows the environment and the one-line workaround.
+This is experimental. As of October 2026, SpikeInterface requires `zarr<3` and shadowzarr needs Zarr v3, so NeuroConv and shadowzarr install together only with that requirement overridden (`uv pip install --override`), and NeuroConv 0.10 reads `zarr.codec_registry` at import, which Zarr v3 removed. `tests/test_neuroconv_bridge.py` shows the environment and the one-line workaround.
 
 ## Formats That VirtualiZarr Parses
 
-[VirtualiZarr](https://virtualizarr.readthedocs.io) parses NetCDF, HDF5, GRIB, FITS, Zarr, and kerchunk references into a `ManifestStore`: Zarr metadata and, for each array, a manifest of where its chunks are. `zarrshadow.virtualizarr` takes those manifests. Install with `pip install zarrshadow[virtualizarr]`.
+[VirtualiZarr](https://virtualizarr.readthedocs.io) parses NetCDF, HDF5, GRIB, FITS, Zarr, and kerchunk references into a `ManifestStore`: Zarr metadata and, for each array, a manifest of where its chunks are. `shadowzarr.virtualizarr` takes those manifests. Install with `pip install shadowzarr[virtualizarr]`.
 
 ```python
 from obspec_utils.registry import ObjectStoreRegistry
 from obstore.store import LocalStore
 from virtualizarr.parsers import HDFParser
-from zarrshadow import write_rfs
-from zarrshadow.virtualizarr import manifest_store_to_rfs, virtual_array
+from shadowzarr import write_rfs
+from shadowzarr.virtualizarr import manifest_store_to_rfs, virtual_array
 
 store = HDFParser()(url="file:///data/air.nc", registry=ObjectStoreRegistry({"file://": LocalStore()}))
-write_rfs(manifest_store_to_rfs(store), "air.zarrshadow")
+write_rfs(manifest_store_to_rfs(store), "air.shadowzarr")
 ```
 
 `manifest_store_to_rfs` writes the whole store as a reference file system, with a chunk index for each array that has many chunks. `virtual_array` takes one `ManifestArray` as a `VirtualArray`, to stack, transpose, or put in an NWB file. An uncompressed array stored in one piece of one file becomes a contiguous `VirtualArray`, so it can also be sliced along any axis, which a `ManifestArray` cannot do by column.
@@ -377,12 +377,12 @@ VirtualiZarr's HDF5 parser does not read NWB files, which hold variable-length s
 
 ## Icechunk Repositories
 
-[Icechunk](https://icechunk.io) is a transactional store for Zarr v3 that keeps its history as snapshots. Besides the chunks it stores itself, it holds virtual chunks, which are byte ranges of other files, as the references here are. `zarrshadow.icechunk` converts in both directions. Install with `pip install zarrshadow[icechunk]`.
+[Icechunk](https://icechunk.io) is a transactional store for Zarr v3 that keeps its history as snapshots. Besides the chunks it stores itself, it holds virtual chunks, which are byte ranges of other files, as the references here are. `shadowzarr.icechunk` converts in both directions. Install with `pip install shadowzarr[icechunk]`.
 
 ```python
 import icechunk
 import zarr
-from zarrshadow.icechunk import icechunk_to_rfs, rfs_to_icechunk
+from shadowzarr.icechunk import icechunk_to_rfs, rfs_to_icechunk
 
 config = icechunk.RepositoryConfig.default()
 config.set_virtual_chunk_container(
@@ -394,7 +394,7 @@ repo = icechunk.Repository.create(
     authorize_virtual_chunk_access={"https://api.dandiarchive.org/": icechunk.credentials.HttpAccess},
 )
 session = repo.writable_session("main")
-rfs_to_icechunk("example.zarrshadow", session)
+rfs_to_icechunk("example.shadowzarr", session)
 session.commit("Add the file")
 
 root = zarr.open_group(repo.readonly_session("main").store, mode="r")
@@ -419,9 +419,9 @@ Apart from the attributes above, a virtual NWB file written into a repository re
 `materialize` reads the bytes a reference file system points at and writes them into an ordinary Zarr store, which then no longer depends on the source files.
 
 ```python
-from zarrshadow import materialize
+from shadowzarr import materialize
 
-report = materialize("session.nwb.zarrshadow", "session.nwb.zarr")
+report = materialize("session.nwb.shadowzarr", "session.nwb.zarr")
 ```
 
 Groups, attributes, and datasets stored in the references file are copied as they are. Each array whose chunks are references is rewritten: by default an array of numbers is cut into chunks of about 4 MiB along its first axis and compressed with zarr's default compressor, and any other array is copied as stored. A `layout` function chooses per array, returning arguments for `zarr.create_array` or `None` to leave the array's chunks as they are:
@@ -434,7 +434,7 @@ def layout(path, array):
         return {"chunks": (30_000, 64), "compressors": BloscCodec(cname="zstd", clevel=5, shuffle="shuffle")}
     return {}
 
-materialize("session.nwb.zarrshadow", "session.nwb.zarr", layout=layout)
+materialize("session.nwb.shadowzarr", "session.nwb.zarr", layout=layout)
 ```
 
 A virtual NWB file materializes into an NWB Zarr file that `NWBZarrIO` opens from its directory. The reading goes through `RfsStore`, so materializing needs none of the libraries that read the source formats, and it can run wherever the references and the source files can be reached. The returned report gives each rewritten array's size and stored size. Pass `verify=True` to read back what was written and compare.
@@ -445,9 +445,9 @@ A virtual NWB file materializes into an NWB Zarr file that `NWBZarrIO` opens fro
 
 ```ts
 import * as zarr from "zarrita";
-import { ReferenceStore } from "zarrshadow";
+import { ReferenceStore } from "shadowzarr";
 
-const store = await ReferenceStore.fromUrl("https://example.org/session.nwb.zarrshadow");
+const store = await ReferenceStore.fromUrl("https://example.org/session.nwb.shadowzarr");
 const array = await zarr.open.v3(zarr.root(store).resolve("acquisition/ElectricalSeries/data"), { kind: "array" });
 const first = await zarr.get(array, [zarr.slice(0, 30000), null]);
 ```
@@ -457,21 +457,21 @@ const first = await zarr.get(array, [zarr.slice(0, 30000), null]);
 `generate_rfs` is the generator for HDF5. Everything after it (the store, the directory format, chunk indexes, `gen`, and source checks) works for any format, and a generator for another format builds the same references with `RfsBuilder`. For a raw binary recording with 16 interleaved `int16` channels after a 12-byte header:
 
 ```python
-from zarrshadow import RfsBuilder, open_rfs, write_rfs
+from shadowzarr import RfsBuilder, open_rfs, write_rfs
 
 builder = RfsBuilder()
 builder.add_group("")
 builder.add_array("data", shape=[10_000, 16], data_type="int16", chunk_shape=[1000, 16])
 builder.add_strided_chunks("data", ndim=2, url="raw.bin", start=12, stride=32_000, length=32_000, count=10)
 rfs = builder.build()
-write_rfs(rfs, "raw.zarrshadow")
+write_rfs(rfs, "raw.shadowzarr")
 ```
 
 `add_chunk` adds one chunk at a time, `add_index` adds all the chunks of a large array as an index array, `add_strided_chunks` adds evenly spaced chunks as a `gen` entry, and `add_inline_chunk` stores small data in the references themselves.
 
 ## DANDI support
 
-zarrshadow handles DANDI API URLs automatically. The DANDI URL (which returns a 302 redirect to a presigned S3 URL) is resolved transparently, with the presigned URL cached for 10 minutes.
+shadowzarr handles DANDI API URLs automatically. The DANDI URL (which returns a 302 redirect to a presigned S3 URL) is resolved transparently, with the presigned URL cached for 10 minutes.
 
 For embargoed datasets, set the appropriate environment variable:
 
@@ -511,9 +511,9 @@ JSON has no representation for `NaN`, `Infinity`, or `-Infinity`. Python writes 
 Every generator does this, because `RfsBuilder.build` encodes the metadata it holds. zarr-python returns attributes as they are stored, and `decode_attributes` turns them back:
 
 ```python
-from zarrshadow import decode_attributes, open_rfs
+from shadowzarr import decode_attributes, open_rfs
 
-root = open_rfs("example.zarrshadow")
+root = open_rfs("example.shadowzarr")
 attributes = decode_attributes(root["acquisition/ElectricalSeries/data"].attrs)
 ```
 
@@ -534,10 +534,10 @@ JSON has no representation for bytes. An HDF5 attribute that holds text is writt
 By default, every array slice triggers an HTTP Range request. For repeated access to the same data (common in interactive analysis), you can enable a persistent local cache backed by SQLite:
 
 ```python
-from zarrshadow import LocalCache, open_rfs
+from shadowzarr import LocalCache, open_rfs
 
-cache = LocalCache()  # persists to ~/.zarrshadow/cache
-root = open_rfs("example.zarrshadow.json", local_cache=cache)
+cache = LocalCache()  # persists to ~/.shadowzarr/cache
+root = open_rfs("example.shadowzarr.json", local_cache=cache)
 
 # First read fetches from remote; subsequent reads are served from disk
 data = root["units/spike_times"][:]
@@ -560,7 +560,7 @@ Three parameters control it:
 - `merge_below`: only chunks of at most this many bytes are merged (default 64 KiB)
 
 ```python
-root = open_rfs("example.zarrshadow.json", merge_gap=100_000, max_merge_size=4 * 2**20)
+root = open_rfs("example.shadowzarr.json", merge_gap=100_000, max_merge_size=4 * 2**20)
 ```
 
 zarr reads at most 10 chunks at a time by default, which is also the most that can share a request. For files with small chunks, raise the limit:
@@ -585,7 +585,7 @@ With every chunk of the LFP read merged into requests of up to 1 MiB, an earlier
 ## Architecture
 
 ```
-zarrshadow/
+shadowzarr/
 ├── builder.py               # RfsBuilder and write_rfs, independent of the source format
 ├── hdf5.py                  # HDF5 → reference file system, through RfsBuilder
 ├── tiff.py                  # TIFF → reference file system, through tifffile and RfsBuilder
@@ -617,7 +617,7 @@ zarrshadow/
 ```
 Remote HDF5 file
     ↓ (h5py + Remfile: read metadata and chunk layout)
-Reference file system (.zarrshadow.json, or .zarrshadow/ directory with chunk indexes)
+Reference file system (.shadowzarr.json, or .shadowzarr/ directory with chunk indexes)
     ↓ (RfsStore: zarr v3 Store implementation)
 zarr.Group (read-only, chunks fetched on demand)
     ↓ (hdmf_zarr.NWBZarrIO)

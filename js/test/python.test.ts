@@ -1,4 +1,4 @@
-/** Arrays written by zarrshadow's Python package, read here and compared with the values it recorded. */
+/** Arrays written by shadowzarr's Python package, read here and compared with the values it recorded. */
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -19,7 +19,7 @@ interface Case {
   values: string;
 }
 
-const folder = process.env.ZARRSHADOW_FIXTURES as string;
+const folder = process.env.SHADOWZARR_FIXTURES as string;
 const cases: Case[] = JSON.parse(readFileSync(join(folder, "cases.json"), "utf8"));
 const stores = new Map<string, Promise<ReferenceStore>>();
 
@@ -71,20 +71,20 @@ describe("arrays match what Python reads", () => {
   });
 
   test("the cases cover indexes, gen entries, selections, and padding", async () => {
-    const hdf5 = (await open("hdf5.zarrshadow")).rfs;
-    const binary = (await open("binary.zarrshadow")).rfs;
+    const hdf5 = (await open("hdf5.shadowzarr")).rfs;
+    const binary = (await open("binary.shadowzarr")).rfs;
     expect(Object.keys(hdf5.indexes ?? {})).toEqual(["acquisition/many_chunks"]);
     expect(hdf5.gen?.length).toBeGreaterThan(0);
     expect(Object.keys(binary.selections ?? {}).sort()).toEqual(["columns", "packets", "rows_and_one_column"]);
     // 1009 rows in chunks of 100: the last chunk is stored short
     expect(binary.refs["whole/c/10/0"]).toEqual([expect.any(String), 12100, 108]);
-    expect((await (await open("binary.zarrshadow")).get("/whole/c/10/0"))?.length).toBe(1200);
+    expect((await (await open("binary.shadowzarr")).get("/whole/c/10/0"))?.length).toBe(1200);
   });
 });
 
 test("attributes that are not finite numbers, or are bytes, are read back", async () => {
   // Python stores them following the Non-Finite Attributes convention, which zarrita reads as strings
-  const store = await open("hdf5.zarrshadow");
+  const store = await open("hdf5.shadowzarr");
   const array = await zarr.open.v3(zarr.root(store).resolve("acquisition/contiguous"), { kind: "array" });
   expect(array.attrs.resolution).toBe("NaN");
   const attributes = decodeAttributes(array.attrs);
@@ -109,18 +109,18 @@ describe("part of a chunk", () => {
   ];
   // A plain chunk, a compressed one, one from a chunk index, ones with selections, and a padded one
   const keys: [string, string][] = [
-    ["hdf5.zarrshadow", "acquisition/contiguous/c/0/0"],
-    ["hdf5.zarrshadow", "acquisition/contiguous/c/6/0"],
-    ["hdf5.zarrshadow", "acquisition/chunked_gzip_shuffle/c/1/0"],
-    ["hdf5.zarrshadow", "acquisition/many_chunks/c/19/11"],
-    ["hdf5.zarrshadow", "acquisition/partly_written/c/0/0"],
-    ["binary.zarrshadow", "whole/c/3/0"],
-    ["binary.zarrshadow", "whole/c/10/0"],
-    ["binary.zarrshadow", "columns/c/2/0"],
-    ["binary.zarrshadow", "columns/c/5/0"],
-    ["binary.zarrshadow", "rows_and_one_column/c/1"],
-    ["binary.zarrshadow", "packets/c/6/0"],
-    ["binary.zarrshadow", "stacked/c/1/0/0"],
+    ["hdf5.shadowzarr", "acquisition/contiguous/c/0/0"],
+    ["hdf5.shadowzarr", "acquisition/contiguous/c/6/0"],
+    ["hdf5.shadowzarr", "acquisition/chunked_gzip_shuffle/c/1/0"],
+    ["hdf5.shadowzarr", "acquisition/many_chunks/c/19/11"],
+    ["hdf5.shadowzarr", "acquisition/partly_written/c/0/0"],
+    ["binary.shadowzarr", "whole/c/3/0"],
+    ["binary.shadowzarr", "whole/c/10/0"],
+    ["binary.shadowzarr", "columns/c/2/0"],
+    ["binary.shadowzarr", "columns/c/5/0"],
+    ["binary.shadowzarr", "rows_and_one_column/c/1"],
+    ["binary.shadowzarr", "packets/c/6/0"],
+    ["binary.shadowzarr", "stacked/c/1/0/0"],
   ];
 
   test.each(keys)("%s %s", async (references, key) => {
@@ -141,7 +141,7 @@ describe("part of a chunk", () => {
   test("only the bytes that are asked for are read from the file", async () => {
     const reads: [number | undefined, number | undefined][] = [];
     const { readFile } = await import("../src/node.js");
-    const store = await openLocal(join(folder, "binary.zarrshadow"), {
+    const store = await openLocal(join(folder, "binary.shadowzarr"), {
       readFile: (path, offset, length) => {
         reads.push([offset, length]);
         return readFile(path, offset, length);
@@ -158,7 +158,7 @@ describe("part of a chunk", () => {
   });
 
   test("a chunk that was never written", async () => {
-    const store = await open("hdf5.zarrshadow");
+    const store = await open("hdf5.shadowzarr");
     expect(await store.get("/acquisition/partly_written/c/1/0")).toBeUndefined();
     expect(await store.getRange("/acquisition/partly_written/c/1/0", { offset: 0, length: 8 })).toBeUndefined();
     expect(await store.get("/acquisition/many_chunks/c/20/0")).toBeUndefined();
@@ -166,9 +166,9 @@ describe("part of a chunk", () => {
 });
 
 test("a local file that changed is refused", async () => {
-  const store = await openLocal(join(folder, "binary.zarrshadow"), { fileSize: async () => 5 });
+  const store = await openLocal(join(folder, "binary.shadowzarr"), { fileSize: async () => 5 });
   await expect(store.get("/whole/c/0/0")).rejects.toThrow(SourceChangedError);
-  const unchecked = await openLocal(join(folder, "binary.zarrshadow"), {
+  const unchecked = await openLocal(join(folder, "binary.shadowzarr"), {
     fileSize: async () => 5,
     validateSources: false,
   });
@@ -216,13 +216,13 @@ describe("over HTTP", () => {
 
   afterAll(() => new Promise<void>((resolve) => void server.close(() => resolve())));
 
-  test.each(["hdf5.zarrshadow", "hdf5.json", "binary.zarrshadow"])("%s", async (references) => {
+  test.each(["hdf5.shadowzarr", "hdf5.json", "binary.shadowzarr"])("%s", async (references) => {
     const store = await ReferenceStore.fromUrl(`${base}/${references}`);
     for (const item of cases.filter((c) => c.references === references)) await expectValues(store, item);
   });
 
   test("chunks are fetched with range requests", async () => {
-    const store = await ReferenceStore.fromUrl(`${base}/binary.zarrshadow`);
+    const store = await ReferenceStore.fromUrl(`${base}/binary.shadowzarr`);
     requests.length = 0;
     await store.get("/whole/c/3/0");
     await store.getRange("/whole/c/3/0", { offset: 24, length: 12 });
@@ -233,22 +233,22 @@ describe("over HTTP", () => {
   });
 
   test("chunks that are close together in a file are fetched in one request", async () => {
-    const store = await ReferenceStore.fromUrl(`${base}/binary.zarrshadow`);
-    const whole = cases.find((c) => c.references === "binary.zarrshadow" && c.path === "whole") as Case;
+    const store = await ReferenceStore.fromUrl(`${base}/binary.shadowzarr`);
+    const whole = cases.find((c) => c.references === "binary.shadowzarr" && c.path === "whole") as Case;
     requests.length = 0;
     await expectValues(store, whole);
     // 11 chunks of raw.bin, one after another from byte 100 to the end of the file
     expect(requests).toEqual([{ url: "/raw.bin", range: "bytes=100-12207", ifMatch: undefined }]);
 
     // Three files of one chunk each cannot be merged
-    const stacked = cases.find((c) => c.references === "binary.zarrshadow" && c.path === "stacked") as Case;
+    const stacked = cases.find((c) => c.references === "binary.shadowzarr" && c.path === "stacked") as Case;
     requests.length = 0;
     await expectValues(store, stacked);
     expect(requests.map((r) => r.url).sort()).toEqual(["/plane0.bin", "/plane1.bin", "/plane2.bin"]);
   });
 
   test("the gap and the size that requests are merged within", async () => {
-    const rfs = (await ReferenceStore.fromUrl(`${base}/binary.zarrshadow`)).rfs;
+    const rfs = (await ReferenceStore.fromUrl(`${base}/binary.shadowzarr`)).rfs;
     // whole/c/i/0 is 1200 bytes at 100 + 1200 * i
     const keys = ["/whole/c/0/0", "/whole/c/1/0", "/whole/c/4/0", "/whole/c/5/0"] as const;
     const read = async (options: object) => {
@@ -274,14 +274,14 @@ describe("over HTTP", () => {
   });
 
   test("a merged request that fails is reported to every caller", async () => {
-    const rfs = (await ReferenceStore.fromUrl(`${base}/binary.zarrshadow`)).rfs;
+    const rfs = (await ReferenceStore.fromUrl(`${base}/binary.shadowzarr`)).rfs;
     const store = new ReferenceStore(rfs, { fetch: async () => new Response(null, { status: 404 }) });
     const results = await Promise.allSettled([store.get("/whole/c/0/0"), store.get("/whole/c/1/0")]);
     expect(results.map((r) => r.status)).toEqual(["rejected", "rejected"]);
   });
 
   test("a file whose ETag or size changed is refused", async () => {
-    const rfs = (await ReferenceStore.fromUrl(`${base}/binary.zarrshadow`)).rfs;
+    const rfs = (await ReferenceStore.fromUrl(`${base}/binary.shadowzarr`)).rfs;
     const withSources = (source: { size?: number; etag?: string }) =>
       new ReferenceStore({ ...rfs, sources: { [`${base}/raw.bin`]: source } }, { retries: 0 });
 
@@ -294,7 +294,7 @@ describe("over HTTP", () => {
   });
 
   test("a failed request is tried again", async () => {
-    const rfs = (await ReferenceStore.fromUrl(`${base}/binary.zarrshadow`)).rfs;
+    const rfs = (await ReferenceStore.fromUrl(`${base}/binary.shadowzarr`)).rfs;
     let calls = 0;
     const flaky = new ReferenceStore(rfs, {
       fetch: (input, init) => (++calls < 3 ? Promise.resolve(new Response(null, { status: 503 })) : fetch(input, init)),

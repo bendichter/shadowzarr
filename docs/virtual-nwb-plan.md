@@ -8,15 +8,15 @@ Write an NWB file whose large datasets are references to bytes in the original a
 
 ## What Exists
 
-- zarrshadow generators for HDF5, TIFF, and the 13 NEO readers with the buffer description API, tested in CI on 59 GIN recordings.
-- A refs format that records several source files with size and ETag, plus `gen`, `indexes`, and (in https://github.com/bendichter/zarrshadow/pull/18) `selections`.
+- shadowzarr generators for HDF5, TIFF, and the 13 NEO readers with the buffer description API, tested in CI on 59 GIN recordings.
+- A refs format that records several source files with size and ETag, plus `gen`, `indexes`, and (in https://github.com/bendichter/shadowzarr/pull/18) `selections`.
 - `RfsStore`, which `NWBZarrIO` reads, and which reads byte ranges of a chunk as ranges.
 - Partial reads of uncompressed chunks in zarr-python (https://github.com/zarr-developers/zarr-python/pull/4458, in review), zarrita.js (branch), and zarr-matlab (merged).
 - An experiment showing that hdmf-zarr 0.14.0 supports skeleton and graft with no change: an empty data iterator wrapped in `ZarrDataIO` writes an array's metadata and no chunks, and the grafted file reads back, validates, and stays lazy. Two source files in one NWB file worked.
 
 ## Design
 
-### 1. VirtualArray (zarrshadow)
+### 1. VirtualArray (shadowzarr)
 
 One object that describes an array stored in other files: shape, dtype, chunk shape, codecs, fill value, where its chunks are (refs, a `gen` entry, or an index), its selection if any, and its sources. Generators return these instead of writing straight into a builder.
 
@@ -34,7 +34,7 @@ It supports basic slicing, which returns another `VirtualArray`:
 
 Each generator gains a function that returns `VirtualArray`s. For NEO that is one per stream per segment, with the stream's columns selected from its buffer, so the sync channel of a SpikeGLX file is its own array and the neural channels are another.
 
-### 3. write_virtual_nwb (zarrshadow[nwb])
+### 3. write_virtual_nwb (shadowzarr[nwb])
 
 1. Find every placeholder in the in-memory `NWBFile`.
 2. Write the file with `NWBZarrIO` to a `MemoryStore`. hdmf-zarr produces the specs, object IDs, references, and attributes.
@@ -52,11 +52,11 @@ NeuroConv keeps building the `NWBFile` and its metadata. The bridge replaces eac
 - `BinaryRecordingExtractor` exposes file paths, dtype, and offset directly.
 - roiextractors TIFF and HDF5 imaging extractors expose the file path and series or dataset.
 
-Channel subsets and orderings that the interface applies become slices of the `VirtualArray`. This starts as a module in zarrshadow that depends on NeuroConv, and moves into NeuroConv as a backend once the interface is stable.
+Channel subsets and orderings that the interface applies become slices of the `VirtualArray`. This starts as a module in shadowzarr that depends on NeuroConv, and moves into NeuroConv as a backend once the interface is stable.
 
 ## Axis Order
 
-A reference describes bytes in the order the file has them, and NWB fixes the order of a dataset's axes. Two mechanisms cover the difference, and neither is specific to zarrshadow.
+A reference describes bytes in the order the file has them, and NWB fixes the order of a dataset's axes. Two mechanisms cover the difference, and neither is specific to shadowzarr.
 
 1. Chunk layout. When each chunk is a run along a single axis, the chunk grid expresses the layout and nothing is reordered. Channel-major data (all of channel 0, then all of channel 1) becomes a time-by-channel array with one-column chunks, where chunk `j` along the channel axis points at channel `j`'s bytes. ROI-by-time traces work the same way. Partial reads keep working.
 2. The Zarr v3 `transpose` codec, when a chunk spans two axes in the wrong order, as with image frames stored (y, x) for a dataset NWB wants as (x, y). It composes with a selection: the store selects bytes, then the codecs decode and transpose. hdmf-zarr writes a `TransposeCodec` given through `ZarrDataIO(filters=...)`; reading data back through one is still to test. zarr-python turns off partial reads for an array with this codec, so use it where chunks are small (one frame) and prefer the chunk layout elsewhere.
@@ -95,10 +95,10 @@ A column permutation needs no selection: the `electrodes` region of an `Electric
 0. Done: generators, selections, partial reads, hdmf-zarr feasibility.
 1. Done: `VirtualArray` with slicing and stacking, NEO arrays per stream (`virtual_arrays_neo`), and `write_virtual_nwb`, tested on the GIN recordings and on a SpikeGLX recording written as NWB. Generators still write into a builder; `VirtualArray.from_rfs` takes an array from what they build.
    Also done: `materialize`, which writes a virtual file into an ordinary Zarr store with a chosen chunking and compression. It reads through `RfsStore` only, so the same function can run in an upload client or on the archive.
-2. Prototype done: `zarrshadow.neuroconv_bridge.virtualize` swaps the data iterators in an NWB file that NeuroConv built for references. It finds each iterator's SpikeInterface recording, walks through channel slices to the recording that holds the NEO reader, and takes that stream's array from `virtual_arrays_neo`. Compared with NeuroConv's own conversion on GIN data, every dataset is equal except the file's creation time, for SpikeGLX (AP band and NIDQ), Open Ephys binary with and without a sync channel, Neuroscope, and MCS raw. Recordings whose samples SpikeInterface negates, and iterators that return scaled values, are refused.
+2. Prototype done: `shadowzarr.neuroconv_bridge.virtualize` swaps the data iterators in an NWB file that NeuroConv built for references. It finds each iterator's SpikeInterface recording, walks through channel slices to the recording that holds the NEO reader, and takes that stream's array from `virtual_arrays_neo`. Compared with NeuroConv's own conversion on GIN data, every dataset is equal except the file's creation time, for SpikeGLX (AP band and NIDQ), Open Ephys binary with and without a sync channel, Neuroscope, and MCS raw. Recordings whose samples SpikeInterface negates, and iterators that return scaled values, are refused.
 
    Two things stand between the prototype and something users can install:
-   - SpikeInterface requires `zarr<3` (0.105.1), and zarrshadow needs Zarr v3. Zarr v3 support is in progress at https://github.com/SpikeInterface/spikeinterface/pull/4260. Until then the two install together only with the requirement overridden.
+   - SpikeInterface requires `zarr<3` (0.105.1), and shadowzarr needs Zarr v3. Zarr v3 support is in progress at https://github.com/SpikeInterface/spikeinterface/pull/4260. Until then the two install together only with the requirement overridden.
    - NeuroConv 0.10.2 reads `zarr.codec_registry` at import, which Zarr v3 removed. Building an NWB file in memory works once that one attribute is put back, and the bridge needs nothing else from NeuroConv. NeuroConv's own Zarr backend was not tested under Zarr v3. NeuroConv pins `zarr<3` on its main branch. Zarr v3 support is tracked in https://github.com/catalystneuro/neuroconv/issues/2076, and https://github.com/catalystneuro/neuroconv/pull/1749 is a draft port of its Zarr backend.
 3. Imaging. Done: a TIFF stack as an NWB series, through `VirtualArray.from_rfs`, `stack` for one file per frame, and `transpose`; and the NeuroConv side, where `virtualize` reads roiextractors' table of the page that holds each frame and makes each page a chunk (`VirtualArray.from_chunks`). Compared with NeuroConv's own conversion on GIN data, every dataset is equal for a TIFF stack, ScanImage (single and two channels, planes, and volumes), an HDF5 movie, Bruker with one file per frame, Thor, and Micro-Manager. Refused for now: compressed pages (the Thor LZW test set), frames cropped out of a page (ScanImage's field-of-view window), and Bruker volumes, which roiextractors assembles from several extractors.
 4. New ephys generators. Done: Blackrock nsX (specs 2.1 to 3.0, with one block per pause, and the files with a packet per sample) and SpikeGadgets. NEO's readers for these do not have the buffer description API, but both read through memory maps, and a memory map says where its data is: `VirtualArray.from_memmap` turns one, or a view of one, into a virtual array, and `VirtualArray.records` describes rows stored in packets of fixed size. `virtual_arrays_neo` uses these for the two readers, so `virtualize` covers them with no change to the bridge. Checked against NEO on the five Blackrock and four SpikeGadgets recordings on GIN, and against NeuroConv's own conversion for both. `generate_rfs_neo` does not cover them.
@@ -117,7 +117,7 @@ A column permutation needs no selection: the `electrodes` region of an `Electric
 
 ## Source Formats
 
-Classes: A, an existing zarrshadow generator covers it. B, one contiguous raw block. C, fixed-size records, one chunk per record. D, needs a selection. E, not feasible. F, nothing to gain. "+T" needs the transpose codec, and "+S" needs a sign or offset carried in `conversion` and `offset`. The evidence column says whether the layout was checked against NEO's read on a GIN file or read in the reader's source only.
+Classes: A, an existing shadowzarr generator covers it. B, one contiguous raw block. C, fixed-size records, one chunk per record. D, needs a selection. E, not feasible. F, nothing to gain. "+T" needs the transpose codec, and "+S" needs a sign or offset carried in `conversion` and `offset`. The evidence column says whether the layout was checked against NEO's read on a GIN file or read in the reader's source only.
 
 As of October 2026 the table's rows are implemented down to EDF, except Axon ABF as one series per sweep per channel. NeuroConv's `AbfInterface` reads the sweeps into memory before it builds the file, so there is no iterator to replace, and the Axon test recording has a negative gain, which SpikeInterface answers by negating the samples. MEArec and Biocam are HDF5: `virtual_arrays_neo` takes the dataset NEO reads from and references it as the HDF5 generator does. A Biocam file that holds its samples as one long row is read as time by channel when that row is stored in one piece. The imaging rows for TIFF and HDF5 are implemented as phase 3 describes. TDT, Axona, Scanbox, the segmentation outputs, and Minian are not.
 
@@ -159,12 +159,12 @@ The survey read NeuroConv at a development checkout (v0.10.1-18), NEO 0.14.4, Sp
 
 ## Relation to VirtualiZarr
 
-VirtualiZarr's `ManifestArray` and `ManifestStore` cover much of what `VirtualArray` and `RfsStore` do, so in October 2026 we tried building on them. `zarrshadow.virtualizarr` came out of that: it writes a `ManifestStore` in this format and takes a `ManifestArray` as a `VirtualArray`. The rest stays separate for now, for these reasons.
+VirtualiZarr's `ManifestArray` and `ManifestStore` cover much of what `VirtualArray` and `RfsStore` do, so in October 2026 we tried building on them. `shadowzarr.virtualizarr` came out of that: it writes a `ManifestStore` in this format and takes a `ManifestArray` as a `VirtualArray`. The rest stays separate for now, for these reasons.
 
 - VirtualiZarr's HDF5 parser raises on object references and cannot read variable-length strings, so it does not open an NWB file (https://github.com/zarr-developers/VirtualiZarr/issues/1104).
 - A `ManifestArray` cannot select columns, can slice rows inside a chunk only when the array is a single chunk, and has no transpose. Ephys with a sync channel and imaging depend on those.
 - Its kerchunk writer emits Zarr v2 metadata from an xarray Dataset. https://github.com/zarr-developers/VirtualiZarr/pull/1118 adds Zarr v3 metadata as an option.
-- It has no chunk index format. Its answer for large reference sets is kerchunk Parquet, which holds Zarr v2 metadata only, or Icechunk. `zarrshadow.icechunk` converts between this format and an Icechunk repository, reading the repository with VirtualiZarr's `IcechunkParser`. It writes through Icechunk's own API, because VirtualiZarr's Icechunk writer takes an xarray `Dataset` or `DataTree`.
+- It has no chunk index format. Its answer for large reference sets is kerchunk Parquet, which holds Zarr v2 metadata only, or Icechunk. `shadowzarr.icechunk` converts between this format and an Icechunk repository, reading the repository with VirtualiZarr's `IcechunkParser`. It writes through Icechunk's own API, because VirtualiZarr's Icechunk writer takes an xarray `Dataset` or `DataTree`.
 
 VirtualiZarr adds concatenation, which `VirtualArray` lacks, and parsers for NetCDF, GRIB, FITS, Zarr, and DMR++. Kerchunk itself went into maintenance mode in September 2026 and points new projects to VirtualiZarr, so proposals about the format belong there.
 

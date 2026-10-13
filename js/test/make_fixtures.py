@@ -2,7 +2,7 @@
 
     python js/test/make_fixtures.py <folder>
 
-Every array is read back through zarrshadow's own store and compared with
+Every array is read back through shadowzarr's own store and compared with
 the data it was made from, so what the JavaScript store is held to is what
 the Python store returns. cases.json lists, for each array, where its
 references are, its path, shape, and data type, and the file that holds its
@@ -16,7 +16,7 @@ import sys
 import h5py
 import numpy as np
 
-from zarrshadow import RfsBuilder, VirtualArray, generate_rfs, open_rfs, stack, write_rfs
+from shadowzarr import RfsBuilder, VirtualArray, generate_rfs, open_rfs, stack, write_rfs
 
 
 def hdf5_file(folder):
@@ -31,7 +31,7 @@ def hdf5_file(folder):
         "partly_written": np.zeros((60, 4), dtype="<i8"),
         "scalar": np.array(42, dtype="<i4"),
         "strings": np.array(["alpha", "βeta", "", "a longer string"], dtype=object),
-        # Long enough that zarrshadow compresses the inline chunk
+        # Long enough that shadowzarr compresses the inline chunk
         "long_strings": np.array([f"sweep {i}: βeta, 30000 Hz" * 20 for i in range(40)], dtype=object),
     }
     data["partly_written"][:20] = np.arange(80).reshape(20, 4)
@@ -135,16 +135,16 @@ def main(folder):
     # A low threshold, so that the arrays with more than a few chunks get a chunk index
     rfs = generate_rfs(source, chunk_index_threshold=10, contiguous_chunk_bytes=20_000)
     assert set(rfs["indexes"]) == {"acquisition/many_chunks"}, rfs.get("indexes")
-    write_rfs(rfs, os.path.join(folder, "hdf5.zarrshadow"))
-    record("hdf5.zarrshadow", os.path.join(folder, "hdf5.zarrshadow"), expected)
+    write_rfs(rfs, os.path.join(folder, "hdf5.shadowzarr"))
+    record("hdf5.shadowzarr", os.path.join(folder, "hdf5.shadowzarr"), expected)
     # The same references in one version 1 file, with every chunk listed
     write_rfs(generate_rfs(source, chunk_index_threshold=10), os.path.join(folder, "hdf5.json"))
     record("hdf5.json", os.path.join(folder, "hdf5.json"), expected)
 
     rfs, expected = binary_arrays(folder)
     assert rfs["version"] == 2 and rfs["selections"] and rfs["gen"]
-    write_rfs(rfs, os.path.join(folder, "binary.zarrshadow"))
-    record("binary.zarrshadow", os.path.join(folder, "binary.zarrshadow"), expected)
+    write_rfs(rfs, os.path.join(folder, "binary.shadowzarr"))
+    record("binary.shadowzarr", os.path.join(folder, "binary.shadowzarr"), expected)
 
     with open(os.path.join(folder, "cases.json"), "w") as f:
         json.dump(cases, f, indent=1)

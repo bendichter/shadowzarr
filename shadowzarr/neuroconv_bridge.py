@@ -6,7 +6,7 @@ swaps those iterators for references, so that nothing is read:
 
     nwbfile = interface.create_nwbfile(metadata=interface.get_metadata())
     virtualize(nwbfile)
-    write_virtual_nwb(nwbfile, "session.nwb.zarrshadow")
+    write_virtual_nwb(nwbfile, "session.nwb.shadowzarr")
 
 Everything else in the file, the metadata and the tables NeuroConv builds, is
 written as NeuroConv made it. This covers recordings that SpikeInterface
@@ -17,7 +17,7 @@ are memory maps of a file (WAV audio).
 
 Experimental. As of October 2026 SpikeInterface requires zarr<3 and NeuroConv
 0.10 reads an attribute at import that Zarr v3 removed, so NeuroConv and
-zarrshadow install together only with the zarr requirement overridden; see
+shadowzarr install together only with the zarr requirement overridden; see
 docs/virtual-nwb-plan.md.
 """
 

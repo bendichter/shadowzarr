@@ -5,11 +5,11 @@ For v1, references are converted to the unified convention format.
 
 Float NaN and Inf are passed through as floats. RfsBuilder.build writes them as
 strings, following the Non-Finite Attributes convention, which keeps a float
-distinct from a string holding the same text; see zarrshadow.non_finite.
+distinct from a string holding the same text; see shadowzarr.non_finite.
 
 A byte string that is valid UTF-8 is converted to text. One that is not, and
 opaque data, are passed through as bytes, which RfsBuilder writes as base64
-strings following the Bytes Attributes convention; see zarrshadow.bytes_attributes.
+strings following the Bytes Attributes convention; see shadowzarr.bytes_attributes.
 
 Ported from lindi with adaptations for the unified zarr v3 convention.
 """

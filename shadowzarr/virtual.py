@@ -16,7 +16,7 @@ bytes:
     movie = VirtualArray.from_rfs(generate_rfs_tiff("movie.tif"), "0")     # (frame, row, column)
     movie = movie.transpose(0, 2, 1)                                       # (frame, column, row)
 
-add_to writes one into an RfsBuilder, and zarrshadow.nwb puts them in an NWB file.
+add_to writes one into an RfsBuilder, and shadowzarr.nwb puts them in an NWB file.
 """
 
 from __future__ import annotations
@@ -422,7 +422,7 @@ class VirtualArray:
         self._add_chunks(builder, path, lambda coords: coords)
 
     def placeholder(self) -> Any:
-        """What to give pynwb as a dataset's data; see zarrshadow.nwb."""
+        """What to give pynwb as a dataset's data; see shadowzarr.nwb."""
         from .nwb import placeholder
 
         return placeholder(self)

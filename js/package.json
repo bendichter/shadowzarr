@@ -1,8 +1,8 @@
 {
-  "name": "zarrshadow",
+  "name": "shadowzarr",
   "version": "0.1.0",
   "private": true,
-  "description": "Read zarrshadow reference files with zarrita.js",
+  "description": "Read shadowzarr reference files with zarrita.js",
   "type": "module",
   "exports": {
     ".": {

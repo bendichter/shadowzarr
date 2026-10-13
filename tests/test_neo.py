@@ -13,7 +13,7 @@ from neo.rawio.baserawio import (  # noqa: E402
     _signal_stream_dtype,
 )
 
-from zarrshadow import RfsBuilder, generate_rfs_neo, open_rfs, write_rfs  # noqa: E402
+from shadowzarr import RfsBuilder, generate_rfs_neo, open_rfs, write_rfs  # noqa: E402
 
 
 def _columns(spec):
@@ -55,8 +55,8 @@ def test_url_for_and_written_forms(raw_file, tmp_path):
     path, x = raw_file
     reader = neo_rawio.RawBinarySignalRawIO(filename=path, dtype="int16", nb_channel=3, bytesoffset=64)
     rfs = generate_rfs_neo(reader, chunk_bytes=6000, url_for=lambda p: p, record_sources=False)
-    write_rfs(rfs, str(tmp_path / "rec.zarrshadow"))
-    np.testing.assert_array_equal(open_rfs(str(tmp_path / "rec.zarrshadow"))["0"][...], x)
+    write_rfs(rfs, str(tmp_path / "rec.shadowzarr"))
+    np.testing.assert_array_equal(open_rfs(str(tmp_path / "rec.shadowzarr"))["0"][...], x)
     hosted = generate_rfs_neo(reader, url_for=lambda p: "https://example.org/data/recording.raw", record_sources=False)
     assert {v[0] for v in hosted["refs"].values() if isinstance(v, list)} == {"https://example.org/data/recording.raw"}
 
@@ -213,7 +213,7 @@ class _EdfReader:
 
 def test_edf_layout(tmp_path):
     """Signals of one rate that are apart in a record, and annotation channels, which the library skips."""
-    from zarrshadow.neo_rawio import _edf_signals, _edf_stream
+    from shadowzarr.neo_rawio import _edf_signals, _edf_stream
 
     rng = np.random.default_rng(14)
     n_records = 6
@@ -262,7 +262,7 @@ def test_edf_layout(tmp_path):
 
 def test_own_path_of_a_linked_file(tmp_path):
     """A memory map of a link can name the link's target. The recording's own path is found again."""
-    from zarrshadow.neo_rawio import _own_path
+    from shadowzarr.neo_rawio import _own_path
 
     store, recording = tmp_path / "store", tmp_path / "recording"
     store.mkdir()

@@ -12,8 +12,8 @@ import zarr
 from zarr.core.buffer import default_buffer_prototype
 from zarr.core.sync import sync
 
-import zarrshadow.rfs_store as rfs_store
-from zarrshadow import RfsBuilder, RfsStore, VirtualArray, open_rfs
+import shadowzarr.rfs_store as rfs_store
+from shadowzarr import RfsBuilder, RfsStore, VirtualArray, open_rfs
 
 RECORD, SAMPLES, HEADER = 1044, 512, 20  # a record of a Neuralynx file: 20 bytes, then 512 int16 samples
 N_RECORDS = 120
@@ -163,7 +163,7 @@ def test_a_failed_request_reaches_every_caller(served, monkeypatch):
 
 
 def test_merged_chunks_go_to_the_local_cache(served, tmp_path):
-    from zarrshadow import LocalCache
+    from shadowzarr import LocalCache
 
     url, x, ranges = served
     cache = LocalCache(cache_dir=str(tmp_path / "cache"))

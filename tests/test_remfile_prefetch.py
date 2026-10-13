@@ -8,8 +8,8 @@ import h5py
 import numpy as np
 import pytest
 
-from zarrshadow import generate_rfs
-from zarrshadow.remfile import ZarrShadowRemfile, parse_chunk_btree_node
+from shadowzarr import generate_rfs
+from shadowzarr.remfile import ShadowZarrRemfile, parse_chunk_btree_node
 
 
 def _write(path, shape, chunks, dtype="<i2", pieces=8):
@@ -108,7 +108,7 @@ def served(tmp_path):
 
 def test_index_is_read_ahead(served):
     folder, url = served
-    remote = ZarrShadowRemfile(url)
+    remote = ShadowZarrRemfile(url)
     with h5py.File(remote, "r") as f:
         ds = f["data"]
         chunks = ds.id.get_num_chunks()

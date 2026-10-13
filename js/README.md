@@ -1,12 +1,12 @@
-# zarrshadow for JavaScript
+# shadowzarr for JavaScript
 
-A [zarrita.js](https://github.com/manzt/zarrita.js) store that reads the reference files zarrshadow writes. It runs in a browser and in Node. It is not published to npm yet.
+A [zarrita.js](https://github.com/manzt/zarrita.js) store that reads the reference files shadowzarr writes. It runs in a browser and in Node. It is not published to npm yet.
 
 ```ts
 import * as zarr from "zarrita";
-import { ReferenceStore } from "zarrshadow";
+import { ReferenceStore } from "shadowzarr";
 
-const store = await ReferenceStore.fromUrl("https://example.org/session.nwb.zarrshadow");
+const store = await ReferenceStore.fromUrl("https://example.org/session.nwb.shadowzarr");
 const array = await zarr.open.v3(zarr.root(store).resolve("acquisition/ElectricalSeries/data"), { kind: "array" });
 const first = await zarr.get(array, [zarr.slice(0, 30000), null]);
 
@@ -39,7 +39,7 @@ The size limit comes from a measurement: one second of an LFP recording on DANDI
 JSON has no representation for `NaN`, `Infinity`, or `-Infinity`, and NWB files have such attributes (`resolution` of a TimeSeries, for one). Reference files store them following the [Non-Finite Attributes Zarr convention](https://github.com/catalystneuro/zarr-non-finite-attributes): the number is written as the string `"NaN"`, `"Infinity"`, or `"-Infinity"`, a string with the same characters is written with the prefix `_str_`, and the group or array registers the convention in its `zarr_conventions` attribute. zarrita returns the attributes as they are stored, and `decodeAttributes` turns them back into numbers and strings:
 
 ```ts
-import { decodeAttributes } from "zarrshadow";
+import { decodeAttributes } from "shadowzarr";
 
 const attributes = decodeAttributes(array.attrs); // { resolution: NaN, ... }
 ```
@@ -59,9 +59,9 @@ zarrita decodes the codecs that references to HDF5 files use (`numcodecs.zlib`, 
 ## Reading Local Files in Node
 
 ```ts
-import { openLocal } from "zarrshadow/node";
+import { openLocal } from "shadowzarr/node";
 
-const store = await openLocal("session.nwb.zarrshadow");
+const store = await openLocal("session.nwb.shadowzarr");
 ```
 
 ## Tests
@@ -71,4 +71,4 @@ npm install
 PYTHON=/path/to/python npm test
 ```
 
-The tests read reference files written by the Python package (`test/make_fixtures.py`) and compare every array with the values Python reads from the same files, so the interpreter needs zarrshadow and h5py installed. They cover HDF5 datasets that are chunked, compressed, contiguous, big-endian, partly written, scalar, and strings, with and without a chunk index, and arrays in raw binary files with selections, stacking, transposing, and a padded last chunk.
+The tests read reference files written by the Python package (`test/make_fixtures.py`) and compare every array with the values Python reads from the same files, so the interpreter needs shadowzarr and h5py installed. They cover HDF5 datasets that are chunked, compressed, contiguous, big-endian, partly written, scalar, and strings, with and without a chunk index, and arrays in raw binary files with selections, stacking, transposing, and a padded last chunk.

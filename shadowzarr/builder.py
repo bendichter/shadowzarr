@@ -9,12 +9,12 @@ files. A generator for a file format walks its source and calls RfsBuilder:
     builder.add_array("data", shape=[10_000, 16], data_type="int16", chunk_shape=[1000, 16])
     builder.add_strided_chunks("data", ndim=2, url=url, start=12, stride=32_000, length=32_000, count=10)
     rfs = builder.build()
-    write_rfs(rfs, "data.zarrshadow")
+    write_rfs(rfs, "data.shadowzarr")
 
 Chunk locations can be given one at a time (add_chunk), as a whole index
 array for arrays with many chunks (add_index), as an arithmetic series for
 evenly spaced chunks (add_strided_chunks, stored as a kerchunk "gen" entry),
-or inline (add_inline_chunk). zarrshadow.hdf5 is the generator for HDF5 files.
+or inline (add_inline_chunk). shadowzarr.hdf5 is the generator for HDF5 files.
 
 When an array is only part of what the file stores in each row, such as some
 of the channels of an interleaved recording, add_selection says which bytes
@@ -142,7 +142,7 @@ class RfsBuilder:
         """Store a group's or array's zarr.json as given.
 
         Attributes that are bytes are written as base64 strings, since JSON
-        has no bytes; see zarrshadow.bytes_attributes.
+        has no bytes; see shadowzarr.bytes_attributes.
         """
         if isinstance(meta.get("attributes"), dict):
             meta = {**meta, "attributes": encode_bytes_attributes(meta["attributes"])}
@@ -199,14 +199,14 @@ class RfsBuilder:
     def add_index(self, path: str, url: str, index: np.ndarray) -> None:
         """All chunks of an array as a uint64 array of shape (*chunk_grid, 2) holding (offset, nbytes).
 
-        Chunks that were never written hold zarrshadow.chunk_index.MISSING. Use this
+        Chunks that were never written hold shadowzarr.chunk_index.MISSING. Use this
         for arrays with many chunks: write_rfs stores the index as a Zarr array
         that readers load one index chunk at a time.
         """
         self.indexes[path] = {"url": url, "index": np.asarray(index, dtype=np.uint64)}
 
     def add_gen(self, key: str, url: str, offset: str, length: str, dimensions: dict) -> None:
-        """A kerchunk gen entry; see zarrshadow.gen for what the templates may contain."""
+        """A kerchunk gen entry; see shadowzarr.gen for what the templates may contain."""
         self.gen.append({"key": key, "url": url, "offset": offset, "length": length, "dimensions": dimensions})
 
     def add_strided_chunks(
@@ -373,7 +373,7 @@ class RfsBuilder:
         recorded under "sources" so readers can detect a file that has changed.
         URLs used many times are replaced by templates.
         Attributes that are NaN or infinite are written as strings; see
-        zarrshadow.non_finite.
+        shadowzarr.non_finite.
         """
         for key, value in self.refs.items():
             if isinstance(value, str) and (key == "zarr.json" or key.endswith("/zarr.json")):
@@ -411,7 +411,7 @@ def write_rfs(rfs: dict, output_path: str) -> None:
 
     refs_json = os.path.join(output_path, "refs.json")
     if os.path.isdir(output_path) and os.listdir(output_path) and not os.path.exists(refs_json):
-        raise FileExistsError(f"{output_path} exists and is not a zarrshadow RFS directory")
+        raise FileExistsError(f"{output_path} exists and is not a shadowzarr RFS directory")
     index_dir = os.path.join(output_path, "index")
     if os.path.isdir(index_dir):
         shutil.rmtree(index_dir)

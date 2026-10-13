@@ -7,7 +7,7 @@ writes a reference file system into a repository, and icechunk_to_rfs writes
 what a repository holds as a reference file system:
 
     import icechunk
-    from zarrshadow.icechunk import icechunk_to_rfs, rfs_to_icechunk
+    from shadowzarr.icechunk import icechunk_to_rfs, rfs_to_icechunk
 
     config = icechunk.RepositoryConfig.default()
     config.set_virtual_chunk_container(
@@ -19,7 +19,7 @@ what a repository holds as a reference file system:
         authorize_virtual_chunk_access={"file:///data/": icechunk.credentials.LocalFileSystemAccess},
     )
     session = repo.writable_session("main")
-    rfs_to_icechunk("session.nwb.zarrshadow", session)
+    rfs_to_icechunk("session.nwb.shadowzarr", session)
     session.commit("Add the session")
 
     rfs = icechunk_to_rfs(repo.readonly_session("main"))
@@ -29,7 +29,7 @@ containers name, so the repository needs a container for every file the
 references point into.
 
 Requires icechunk, and virtualizarr to read a repository
-(pip install zarrshadow[icechunk]).
+(pip install shadowzarr[icechunk]).
 """
 
 from __future__ import annotations
@@ -205,7 +205,7 @@ def icechunk_to_rfs(
     Returns
     -------
     dict
-        A reference file system dict; see zarrshadow.builder.
+        A reference file system dict; see shadowzarr.builder.
     """
     from obspec_utils.registry import ObjectStoreRegistry
     from virtualizarr.parsers import IcechunkParser
@@ -343,5 +343,5 @@ def _location(url: str) -> str:
 
 
 def _path(location: str) -> str:
-    """The location of a virtual chunk as zarrshadow refers to files: a file:// URL becomes a local path."""
+    """The location of a virtual chunk as shadowzarr refers to files: a file:// URL becomes a local path."""
     return unquote(location[len("file://") :]) if location.startswith("file://") else location
