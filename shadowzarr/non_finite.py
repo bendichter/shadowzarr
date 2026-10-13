@@ -18,7 +18,7 @@ Attributes Zarr convention (https://github.com/catalystneuro/zarr-non-finite-att
 RfsBuilder.build encodes the metadata it holds. zarr-python returns the
 attributes as they are stored, so decode_attributes turns them back:
 
-    root = open_rfs("session.zarrshadow")
+    root = open_rfs("session.shadowzarr")
     attributes = decode_attributes(root["acquisition/signal/data"].attrs)
 """
 

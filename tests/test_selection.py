@@ -11,10 +11,10 @@ import numpy as np
 import pytest
 from zarr.abc.store import OffsetByteRequest, RangeByteRequest, SuffixByteRequest
 
-import zarrshadow.rfs_store
-from zarrshadow import RfsBuilder, RfsStore, open_rfs, write_rfs
-from zarrshadow.builder import columns_selection
-from zarrshadow.rfs_store import Selection, _array_path
+import shadowzarr.rfs_store
+from shadowzarr import RfsBuilder, RfsStore, open_rfs, write_rfs
+from shadowzarr.builder import columns_selection
+from shadowzarr.rfs_store import Selection, _array_path
 
 N_COLUMNS, HEADER, ROWS, CHUNK_ROWS = 17, 12, 10_000, 1000
 
@@ -99,8 +99,8 @@ def test_written_forms(recording, tmp_path):
     path, x = recording
     rfs = _builder(path, x, slice(0, 16)).build()
 
-    write_rfs(rfs, str(tmp_path / "raw.zarrshadow"))
-    np.testing.assert_array_equal(open_rfs(str(tmp_path / "raw.zarrshadow"))["data"][...], x[:, :16])
+    write_rfs(rfs, str(tmp_path / "raw.shadowzarr"))
+    np.testing.assert_array_equal(open_rfs(str(tmp_path / "raw.shadowzarr"))["data"][...], x[:, :16])
 
     # A single file cannot be version 1, which has no way to express a selection
     write_rfs(rfs, str(tmp_path / "raw.json"))
@@ -153,13 +153,13 @@ def _get(store, key, byte_range=None):
 def reads(monkeypatch):
     """Record the (offset, length) of every read from a file."""
     log = []
-    read = zarrshadow.rfs_store._read_bytes_from_url_or_path
+    read = shadowzarr.rfs_store._read_bytes_from_url_or_path
 
     def logged(url_or_path, offset, length, **kwargs):
         log.append((offset, length))
         return read(url_or_path, offset, length, **kwargs)
 
-    monkeypatch.setattr(zarrshadow.rfs_store, "_read_bytes_from_url_or_path", logged)
+    monkeypatch.setattr(shadowzarr.rfs_store, "_read_bytes_from_url_or_path", logged)
     return log
 
 

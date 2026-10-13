@@ -219,8 +219,8 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# zarrshadow
-examples/*.zarrshadow.json
+# shadowzarr
+examples/*.shadowzarr.json
 
 # JavaScript
 node_modules/

@@ -1,4 +1,4 @@
-"""Use what VirtualiZarr parses in zarrshadow.
+"""Use what VirtualiZarr parses in shadowzarr.
 
 VirtualiZarr (https://virtualizarr.readthedocs.io) parses many formats,
 among them NetCDF, HDF5, GRIB, FITS, Zarr, and kerchunk references, into a
@@ -6,17 +6,17 @@ ManifestStore: Zarr metadata plus, for each array, a manifest of where its
 chunks are. The functions here take those manifests:
 
     from virtualizarr.parsers import HDFParser
-    from zarrshadow.virtualizarr import manifest_store_to_rfs
+    from shadowzarr.virtualizarr import manifest_store_to_rfs
 
     store = HDFParser()(url="file:///data/air.nc", registry=registry)
     rfs = manifest_store_to_rfs(store)
-    write_rfs(rfs, "air.zarrshadow")
+    write_rfs(rfs, "air.shadowzarr")
 
 manifest_store_to_rfs writes a whole store as a reference file system, with a
 chunk index for each array that has many chunks. virtual_array takes one
 ManifestArray as a VirtualArray, to stack, transpose, or put in an NWB file.
 
-Requires virtualizarr (pip install zarrshadow[virtualizarr]).
+Requires virtualizarr (pip install shadowzarr[virtualizarr]).
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ def manifest_store_to_rfs(
     Returns
     -------
     dict
-        A reference file system dict; see zarrshadow.builder.
+        A reference file system dict; see shadowzarr.builder.
     """
     builder = RfsBuilder()
     _add_manifest_store(builder, store, index_threshold=index_threshold, url_for=url_for)
@@ -219,5 +219,5 @@ def _array_metadata_json(metadata: Any) -> str:
 
 
 def _location(path: str) -> str:
-    """A manifest's path as zarrshadow refers to files: local paths without the file scheme."""
+    """A manifest's path as shadowzarr refers to files: local paths without the file scheme."""
     return path[len("file://") :] if path.startswith("file://") else path

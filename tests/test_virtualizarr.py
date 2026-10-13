@@ -1,4 +1,4 @@
-"""What VirtualiZarr parses, written and used through zarrshadow."""
+"""What VirtualiZarr parses, written and used through shadowzarr."""
 
 import json
 
@@ -10,8 +10,8 @@ pytest.importorskip("virtualizarr")
 from virtualizarr.manifests import ChunkManifest, ManifestArray, ManifestGroup, ManifestStore  # noqa: E402
 from virtualizarr.manifests.utils import create_v3_array_metadata  # noqa: E402
 
-from zarrshadow import RfsBuilder, open_rfs, stack, write_rfs  # noqa: E402
-from zarrshadow.virtualizarr import manifest_store_to_rfs, virtual_array  # noqa: E402
+from shadowzarr import RfsBuilder, open_rfs, stack, write_rfs  # noqa: E402
+from shadowzarr.virtualizarr import manifest_store_to_rfs, virtual_array  # noqa: E402
 
 BYTES = [{"name": "bytes", "configuration": {"endian": "little"}}]
 
@@ -85,8 +85,8 @@ def test_arrays_with_many_chunks_get_an_index(recording, tmp_path):
     rfs = manifest_store_to_rfs(ManifestGroup(arrays={"signal": signal}))
     assert list(rfs["indexes"]) == ["signal"] and rfs["indexes"]["signal"]["index"].shape == (2000, 1, 2)
     assert not any(key.startswith("signal/c/") for key in rfs["refs"])
-    write_rfs(rfs, str(tmp_path / "raw.zarrshadow"))
-    np.testing.assert_array_equal(open_rfs(str(tmp_path / "raw.zarrshadow"))["signal"][...], x)
+    write_rfs(rfs, str(tmp_path / "raw.shadowzarr"))
+    np.testing.assert_array_equal(open_rfs(str(tmp_path / "raw.shadowzarr"))["signal"][...], x)
 
     listed = manifest_store_to_rfs(ManifestGroup(arrays={"signal": signal}), index_threshold=None)
     assert "indexes" not in listed and listed["refs"]["signal/c/7/0"] == ["{{u0}}", 12 + 35 * 34, 170]
@@ -188,8 +188,8 @@ def test_manifest_array_in_an_nwb_file(recording):
 
     from hdmf_zarr import NWBZarrIO
 
-    from zarrshadow import RfsStore
-    from zarrshadow.nwb import write_virtual_nwb
+    from shadowzarr import RfsStore
+    from shadowzarr.nwb import write_virtual_nwb
 
     path, x = recording
     array = virtual_array(_raw_manifest_array(path, x, chunk_rows=1000, offset=12))

@@ -5,7 +5,7 @@ import json
 import numpy as np
 import pytest
 
-from zarrshadow import RfsBuilder, VirtualArray, open_rfs, stack
+from shadowzarr import RfsBuilder, VirtualArray, open_rfs, stack
 
 HEADER = 12
 
@@ -255,7 +255,7 @@ def test_transpose_tiff(tmp_path, options):
     """A TIFF stack, stored (page, row, column), read as (page, column, row)."""
     tifffile = pytest.importorskip("tifffile")
     pytest.importorskip("imagecodecs")
-    from zarrshadow import generate_rfs_tiff
+    from shadowzarr import generate_rfs_tiff
 
     x = np.random.default_rng(6).integers(0, 4000, (20, 48, 64)).astype("uint16")
     tifffile.imwrite(tmp_path / "movie.tif", x, **options)
@@ -300,7 +300,7 @@ def test_take_tiff_pages(tmp_path, options, key):
     """Along an axis with one element per chunk, such as the pages of a TIFF stack, any chunks can be picked."""
     tifffile = pytest.importorskip("tifffile")
     pytest.importorskip("imagecodecs")
-    from zarrshadow import generate_rfs_tiff
+    from shadowzarr import generate_rfs_tiff
 
     x = np.random.default_rng(8).integers(0, 4000, (12, 48, 64)).astype("uint16")
     tifffile.imwrite(tmp_path / "movie.tif", x, **options)

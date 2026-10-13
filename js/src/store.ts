@@ -11,7 +11,7 @@ import { Selection } from "./selection.js";
 /** A reference: inline text or base64, inline JSON, or a place in a file. */
 export type Ref = string | Record<string, unknown> | FileRef;
 
-/** The contents of a zarrshadow reference file (refs.json). */
+/** The contents of a shadowzarr reference file (refs.json). */
 export interface ReferenceFileSystem {
   version?: number;
   refs: Record<string, Ref>;
@@ -36,7 +36,7 @@ export interface ReferenceStoreOptions {
    * ten minutes.
    */
   resolveUrl?: (url: string) => string | Promise<string>;
-  /** Reads a reference that is a local path, which a browser cannot. See zarrshadow/node. */
+  /** Reads a reference that is a local path, which a browser cannot. See shadowzarr/node. */
   readFile?: (path: string, offset?: number, length?: number) => Promise<Uint8Array>;
   /** The size of a local file, to check it against the recorded one. */
   fileSize?: (path: string) => Promise<number>;
@@ -143,7 +143,7 @@ export function itemSize(dataType: unknown): number | undefined {
 }
 
 /**
- * A read-only zarrita store over a zarrshadow reference file.
+ * A read-only zarrita store over a shadowzarr reference file.
  *
  * Keys are looked up in "refs", then in the chunk index of their array, then
  * in the "gen" entries. A reference into a file is read with a range request,
@@ -152,9 +152,9 @@ export function itemSize(dataType: unknown): number | undefined {
  *
  * ```ts
  * import * as zarr from "zarrita";
- * import { ReferenceStore } from "zarrshadow";
+ * import { ReferenceStore } from "shadowzarr";
  *
- * const store = await ReferenceStore.fromUrl("https://example.org/session.nwb.zarrshadow");
+ * const store = await ReferenceStore.fromUrl("https://example.org/session.nwb.shadowzarr");
  * const array = await zarr.open.v3(zarr.root(store).resolve("acquisition/ElectricalSeries/data"), { kind: "array" });
  * const first = await zarr.get(array, [zarr.slice(0, 30000), null]);
  * ```
@@ -371,7 +371,7 @@ export class ReferenceStore implements AsyncReadable {
       });
     }
     if (!this.#options.readFile) {
-      throw new Error(`${location} is a local path; pass readFile (see zarrshadow/node) to read it`);
+      throw new Error(`${location} is a local path; pass readFile (see shadowzarr/node) to read it`);
     }
     await this.#checkFile(location);
     return this.#options.readFile(location, offset, length);

@@ -61,7 +61,7 @@ def generate_rfs_neo(
     Returns
     -------
     dict
-        A reference file system dict; see zarrshadow.builder.
+        A reference file system dict; see shadowzarr.builder.
     """
     import neo
 
@@ -70,7 +70,7 @@ def generate_rfs_neo(
     if not reader.has_buffer_description_api():
         raise ValueError(
             f"{type(reader).__name__} does not describe its signal buffers, so its "
-            "files cannot be referenced; zarrshadow supports the NEO readers that do"
+            "files cannot be referenced; shadowzarr supports the NEO readers that do"
         )
     url_for = url_for or (lambda path: path)
 
@@ -146,7 +146,7 @@ def virtual_arrays_neo(
         if stream_array is None:
             raise ValueError(
                 f"{type(reader).__name__} does not describe its signal buffers, so its "
-                "files cannot be referenced; zarrshadow supports the NEO readers that do"
+                "files cannot be referenced; shadowzarr supports the NEO readers that do"
             )
         arrays = {}
         for block in range(n_blocks):

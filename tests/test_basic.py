@@ -1,4 +1,4 @@
-"""End-to-end tests for zarrshadow: HDF5 → zarr v3 RFS → read back."""
+"""End-to-end tests for shadowzarr: HDF5 → zarr v3 RFS → read back."""
 
 import json
 import math
@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 import zarr
 
-from zarrshadow import decode_attributes, generate_rfs, open_rfs
+from shadowzarr import decode_attributes, generate_rfs, open_rfs
 
 
 def _create_test_hdf5(path: str) -> None:
@@ -480,9 +480,9 @@ class TestBasicRoundtrip:
 
     def test_write_and_read_json(self):
         """RFS can be written to JSON and read back."""
-        from zarrshadow import write_rfs
+        from shadowzarr import write_rfs
 
-        json_path = f"{self.tmpdir}/test.zarrshadow.json"
+        json_path = f"{self.tmpdir}/test.shadowzarr.json"
         write_rfs(self.rfs, json_path)
 
         root = open_rfs(json_path)
@@ -496,7 +496,7 @@ class TestBasicRoundtrip:
 
 def test_large_inline_chunks_are_compressed(tmp_path):
     """Inline text and tables of references can be large, and all of it is read on opening."""
-    from zarrshadow.hdf5 import INLINE_COMPRESS_BYTES
+    from shadowzarr.hdf5 import INLINE_COMPRESS_BYTES
 
     path = str(tmp_path / "inline.h5")
     notes = "sweep 12: βeta, 30000 Hz, " * 2000

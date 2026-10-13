@@ -6,9 +6,9 @@ import math
 import numpy as np
 import pytest
 
-from zarrshadow import RfsBuilder, decode_attributes, open_rfs, write_rfs
-from zarrshadow import non_finite
-from zarrshadow.bytes_attributes import CONVENTION, decode, encode, encode_attributes
+from shadowzarr import RfsBuilder, decode_attributes, open_rfs, write_rfs
+from shadowzarr import non_finite
+from shadowzarr.bytes_attributes import CONVENTION, decode, encode, encode_attributes
 
 NAN = float("nan")
 
@@ -105,7 +105,7 @@ def test_builder_encodes_bytes(tmp_path):
     # a node with no bytes is left as it was
     assert _strict(rfs["refs"]["plain/zarr.json"])["attributes"] == {"note": "base64:AP8="}
 
-    for location in (rfs, str(tmp_path / "a.zarrshadow")):
+    for location in (rfs, str(tmp_path / "a.shadowzarr")):
         if isinstance(location, str):
             write_rfs(rfs, location)
         group = open_rfs(location)
@@ -119,7 +119,7 @@ def test_builder_encodes_bytes(tmp_path):
 def test_hdf5_attributes(tmp_path):
     """Attributes that are not valid UTF-8, and opaque data, are kept; they used to be dropped."""
     h5py = pytest.importorskip("h5py")
-    from zarrshadow import generate_rfs
+    from shadowzarr import generate_rfs
 
     latin1 = "Müller".encode("latin-1")
     path = tmp_path / "data.h5"

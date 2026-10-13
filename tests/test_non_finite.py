@@ -6,8 +6,8 @@ import math
 import numpy as np
 import pytest
 
-from zarrshadow import RfsBuilder, decode_attributes, open_rfs, write_rfs
-from zarrshadow.non_finite import CONVENTION, decode, encode, encode_attributes, encode_metadata
+from shadowzarr import RfsBuilder, decode_attributes, open_rfs, write_rfs
+from shadowzarr.non_finite import CONVENTION, decode, encode, encode_attributes, encode_metadata
 
 NAN, INF = float("nan"), float("inf")
 
@@ -108,7 +108,7 @@ def test_builder_encodes_groups_arrays_and_consolidated_metadata(tmp_path):
     # a node with no such number is left as it was
     assert _strict(rfs["refs"]["plain/zarr.json"])["attributes"] == {"note": "NaN"}
 
-    for location in (rfs, str(tmp_path / "a.zarrshadow"), str(tmp_path / "a.zarrshadow.json")):
+    for location in (rfs, str(tmp_path / "a.shadowzarr"), str(tmp_path / "a.shadowzarr.json")):
         if isinstance(location, str):
             write_rfs(rfs, location)
         group = open_rfs(location)
@@ -120,7 +120,7 @@ def test_builder_encodes_groups_arrays_and_consolidated_metadata(tmp_path):
 
 def test_hdf5_attributes(tmp_path):
     h5py = pytest.importorskip("h5py")
-    from zarrshadow import generate_rfs
+    from shadowzarr import generate_rfs
 
     path = tmp_path / "data.h5"
     with h5py.File(path, "w") as f:
@@ -150,8 +150,8 @@ def test_virtual_nwb_file(tmp_path):
     hdmf_zarr = pytest.importorskip("hdmf_zarr")
     from datetime import datetime, timezone
 
-    from zarrshadow import RfsStore, VirtualArray
-    from zarrshadow.nwb import write_virtual_nwb
+    from shadowzarr import RfsStore, VirtualArray
+    from shadowzarr.nwb import write_virtual_nwb
 
     x = np.arange(160, dtype="<i2").reshape(10, 16)
     (tmp_path / "raw.bin").write_bytes(x.tobytes())

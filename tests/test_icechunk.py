@@ -10,8 +10,8 @@ from zarr.core.sync import sync
 icechunk = pytest.importorskip("icechunk")
 pytest.importorskip("virtualizarr.parsers.icechunk")
 
-from zarrshadow import RfsBuilder, VirtualArray, generate_rfs, open_rfs, write_rfs  # noqa: E402
-from zarrshadow.icechunk import icechunk_to_rfs, rfs_to_icechunk  # noqa: E402
+from shadowzarr import RfsBuilder, VirtualArray, generate_rfs, open_rfs, write_rfs  # noqa: E402
+from shadowzarr.icechunk import icechunk_to_rfs, rfs_to_icechunk  # noqa: E402
 
 
 @pytest.fixture
@@ -115,13 +115,13 @@ def test_hdf5_round_trip(hdf5, repo, tmp_path):
     _assert_same(open_rfs(back), original)
 
     # and from a directory, whose chunk indexes are read when they are needed
-    write_rfs(rfs, str(tmp_path / "data.zarrshadow"))
+    write_rfs(rfs, str(tmp_path / "data.shadowzarr"))
     other = icechunk.Repository.create(
         icechunk.local_filesystem_storage(str(tmp_path / "other")),
         config=repo.config,
         authorize_virtual_chunk_access={f"file://{tmp_path}/": icechunk.credentials.LocalFileSystemAccess},
     )
-    _assert_same(zarr.open_group(_committed(other, str(tmp_path / "data.zarrshadow")).store, mode="r"), original)
+    _assert_same(zarr.open_group(_committed(other, str(tmp_path / "data.shadowzarr")).store, mode="r"), original)
 
 
 @pytest.fixture
@@ -208,18 +208,30 @@ def test_file_outside_the_containers(recording, repo, tmp_path):
 
 
 def test_attributes_that_are_not_finite(repo):
-    """Icechunk refuses NaN and Infinity as bare words, so they are written as strings."""
+    """Icechunk refuses NaN and Infinity as bare words. They are written as strings, following the
+    Non-Finite Attributes convention, and read back as numbers."""
+    from shadowzarr import decode_attributes
+
+    def strict(text):
+        def refuse(token):
+            raise ValueError(f"{token} is not valid JSON")
+
+        return json.loads(text, parse_constant=refuse)
+
     builder = RfsBuilder()
     builder.add_group("", {"resolution": float("nan"), "limits": [float("-inf"), 1.5, float("inf")], "name": "a"})
     builder.add_array("data", shape=[2], data_type="float64", chunk_shape=[2], fill_value="NaN")
     rfs = builder.build()
-    assert "NaN" in rfs["refs"]["zarr.json"] and '"NaN"' not in rfs["refs"]["zarr.json"]
+    stored = strict(rfs["refs"]["zarr.json"])["attributes"]
+    assert stored["resolution"] == "NaN" and stored["limits"] == ["-Infinity", 1.5, "Infinity"]
 
     session = _committed(repo, rfs)
     root = zarr.open_group(session.store, mode="r")
-    assert dict(root.attrs) == {"resolution": "NaN", "limits": ["-Infinity", 1.5, "Infinity"], "name": "a"}
+    attributes = decode_attributes(root.attrs)
+    assert np.isnan(attributes.pop("resolution"))
+    assert attributes == {"limits": [float("-inf"), 1.5, float("inf")], "name": "a"}
     assert np.isnan(root["data"][...]).all()
-    assert json.loads(icechunk_to_rfs(session)["refs"]["zarr.json"])["attributes"]["resolution"] == "NaN"
+    assert strict(icechunk_to_rfs(session)["refs"]["zarr.json"])["attributes"]["resolution"] == "NaN"
 
 
 def test_virtual_nwb_file(repo, tmp_path):
@@ -230,8 +242,8 @@ def test_virtual_nwb_file(repo, tmp_path):
 
     from hdmf_zarr import NWBZarrIO
 
-    from zarrshadow import RfsStore, stack
-    from zarrshadow.nwb import write_virtual_nwb
+    from shadowzarr import RfsStore, stack
+    from shadowzarr.nwb import write_virtual_nwb
 
     rng = np.random.default_rng(2)
     x = rng.integers(-500, 500, (10_000, 16)).astype("<i2")

@@ -18,7 +18,7 @@
 // A string is matched whole, so that the words are only found outside of one
 const TOKENS = /"(?:[^"\\]|\\.)*"|-?Infinity|NaN/g;
 const NON_FINITE: Record<string, number> = { NaN: Number.NaN, Infinity: Infinity, "-Infinity": -Infinity };
-const MARK = "@@zarrshadow-non-finite@@";
+const MARK = "@@shadowzarr-non-finite@@";
 
 const mayHaveTokens = (text: string) => text.includes("NaN") || text.includes("Infinity");
 

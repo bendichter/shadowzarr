@@ -64,7 +64,7 @@ def parse_chunk_btree_node(node: bytes, file_length: int) -> tuple[int, list[int
     return None
 
 
-class ZarrShadowRemfile:
+class ShadowZarrRemfile:
     """A file-like object for reading a remote file over HTTP.
 
     Optimized for reading HDF5 files: starts with small reads for metadata,

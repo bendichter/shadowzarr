@@ -18,9 +18,9 @@ pytest.importorskip("hdmf_zarr.nwb")
 from hdmf.data_utils import DataChunkIterator  # noqa: E402
 from hdmf_zarr import NWBZarrIO  # noqa: E402
 
-from zarrshadow import RfsStore, open_rfs  # noqa: E402
-from zarrshadow.neuroconv_bridge import NotVirtualizable, virtualize  # noqa: E402
-from zarrshadow.nwb import write_virtual_nwb  # noqa: E402
+from shadowzarr import RfsStore, open_rfs  # noqa: E402
+from shadowzarr.neuroconv_bridge import NotVirtualizable, virtualize  # noqa: E402
+from shadowzarr.nwb import write_virtual_nwb  # noqa: E402
 
 
 def _import_neuroconv():
@@ -69,14 +69,14 @@ class _Pages:
 def _imaging_array(extractor, maxshape, dtype):
     from types import SimpleNamespace
 
-    from zarrshadow.neuroconv_bridge import _array_for_imaging
+    from shadowzarr.neuroconv_bridge import _array_for_imaging
 
     iterator = SimpleNamespace(imaging_extractor=extractor, maxshape=maxshape, dtype=np.dtype(dtype))
     return _array_for_imaging(iterator, None)
 
 
 def _read(virtual):
-    from zarrshadow import RfsBuilder
+    from shadowzarr import RfsBuilder
 
     builder = RfsBuilder()
     builder.add_group("")

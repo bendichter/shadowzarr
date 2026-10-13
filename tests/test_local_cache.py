@@ -6,8 +6,8 @@ import h5py
 import numpy as np
 import pytest
 
-from zarrshadow import LocalCache, generate_rfs, open_rfs
-from zarrshadow.local_cache import ChunkTooLargeError
+from shadowzarr import LocalCache, generate_rfs, open_rfs
+from shadowzarr.local_cache import ChunkTooLargeError
 
 
 class TestLocalCacheDirect:
