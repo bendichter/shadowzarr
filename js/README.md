@@ -44,6 +44,8 @@ import { decodeAttributes } from "zarrshadow";
 const attributes = decodeAttributes(array.attrs); // { resolution: NaN, ... }
 ```
 
+Bytes that are not valid UTF-8, and HDF5 opaque values, are stored following the [Bytes Attributes Zarr convention](https://github.com/catalystneuro/zarr-bytes-attributes) as `"base64:..."` strings, with the same `_str_` escape. `decodeAttributes` decodes both conventions and returns bytes as a `Uint8Array`.
+
 Reference files written before this hold the bare words `NaN` and `Infinity`, which `JSON.parse` refuses. The store gives zarrita their metadata in the form above, so both read the same way. `parseJson` reads the bare words into numbers.
 
 zarrita decodes the codecs that references to HDF5 files use (`numcodecs.zlib`, `numcodecs.shuffle`, `numcodecs.blosc`, `numcodecs.zstd`). The store adds `numcodecs.fletcher32`, which drops the checksum without verifying it.

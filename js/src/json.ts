@@ -88,18 +88,60 @@ function hasNonFinite(value: unknown): boolean {
   return isObject(value) && Object.values(value).some(hasNonFinite);
 }
 
-/**
- * The attributes of a group or array, decoded if the node registers the
- * convention. Pass the attrs zarrita returns. The entry that registers the
- * convention is left out of the result, and a node that does not register it
- * is returned as it is.
- */
-export function decodeAttributes(attributes: Json): Json {
+/** The attributes of a node, decoded if it registers the Non-Finite Attributes convention. */
+function decodeNonFiniteAttributes(attributes: Json): Json {
   if (!isRegistered(attributes)) return attributes;
   const { [CONVENTIONS]: conventions, ...rest } = attributes;
   const others = (conventions as unknown[]).filter((entry) => !isRegistration(entry));
   const decoded = mapValues(rest, decodeNonFinite);
   return others.length ? { ...decoded, [CONVENTIONS]: others } : decoded;
+}
+
+/**
+ * Bytes in attributes are stored following the Bytes Attributes Zarr
+ * convention (https://github.com/catalystneuro/zarr-bytes-attributes): bytes
+ * are written as "base64:" followed by the bytes in base64, a string that
+ * begins with "base64:" after any "_str_" prefixes is written with one more
+ * "_str_", and the group or array registers the convention. It uses the same
+ * escape as Non-Finite Attributes, and the two can be decoded in either order.
+ */
+export const BYTES_ATTRIBUTES_UUID = "2de6770a-9c00-4432-9e84-dd9e1dfed441";
+const TAG = "base64:";
+const BYTES_AFFECTED = /^(?:_str_)*base64:/;
+const CANONICAL_BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/][AQgw]==|[A-Za-z0-9+/]{2}[AEIMQUYcgkosw048]=)?$/;
+
+/** The value that an attribute of a node that registers the Bytes Attributes convention stands for. */
+export function decodeBytes(value: unknown): unknown {
+  if (typeof value === "string" && BYTES_AFFECTED.test(value)) {
+    if (value.startsWith(PREFIX)) return value.slice(PREFIX.length);
+    const payload = value.slice(TAG.length);
+    if (!CANONICAL_BASE64.test(payload)) throw new Error(`not a canonical base64 payload: ${value}`);
+    return Uint8Array.from(atob(payload), (character) => character.charCodeAt(0));
+  }
+  if (Array.isArray(value)) return value.map(decodeBytes);
+  return isObject(value) ? mapValues(value, decodeBytes) : value;
+}
+
+const isBytesRegistration = (entry: unknown) => isObject(entry) && entry.uuid === BYTES_ATTRIBUTES_UUID;
+
+/** The attributes of a node, decoded if it registers the Bytes Attributes convention. */
+function decodeBytesAttributes(attributes: Json): Json {
+  const conventions = attributes[CONVENTIONS];
+  if (!Array.isArray(conventions) || !conventions.some(isBytesRegistration)) return attributes;
+  const { [CONVENTIONS]: _, ...rest } = attributes;
+  const others = conventions.filter((entry) => !isBytesRegistration(entry));
+  const decoded = mapValues(rest, decodeBytes);
+  return others.length ? { ...decoded, [CONVENTIONS]: others } : decoded;
+}
+
+/**
+ * The attributes of a group or array, decoded for the Non-Finite Attributes
+ * and Bytes Attributes conventions, where the node registers them. Pass the
+ * attrs zarrita returns. The entries that register these conventions are left
+ * out of the result, and a node that registers neither is returned as it is.
+ */
+export function decodeAttributes(attributes: Json): Json {
+  return decodeBytesAttributes(decodeNonFiniteAttributes(attributes));
 }
 
 /** Encode the attributes of a node, and of the nodes in its consolidated metadata, where they hold a non-finite number. */

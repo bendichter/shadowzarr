@@ -82,7 +82,7 @@ describe("arrays match what Python reads", () => {
   });
 });
 
-test("attributes that are not finite numbers are read back", async () => {
+test("attributes that are not finite numbers, or are bytes, are read back", async () => {
   // Python stores them following the Non-Finite Attributes convention, which zarrita reads as strings
   const store = await open("hdf5.zarrshadow");
   const array = await zarr.open.v3(zarr.root(store).resolve("acquisition/contiguous"), { kind: "array" });
@@ -90,6 +90,10 @@ test("attributes that are not finite numbers are read back", async () => {
   const attributes = decodeAttributes(array.attrs);
   expect(attributes.resolution).toBeNaN();
   expect(attributes.limits).toEqual([-Infinity, Infinity]);
+  // bytes that are not valid UTF-8 are stored following the Bytes Attributes convention
+  expect(array.attrs.operator).toBe("base64:TfxsbGVy");
+  expect(attributes.operator).toEqual(Uint8Array.from([0x4d, 0xfc, 0x6c, 0x6c, 0x65, 0x72]));
+  expect(attributes.note).toBe("base64:AP8=");
   expect(attributes).not.toHaveProperty("zarr_conventions");
 });
 
