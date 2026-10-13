@@ -224,3 +224,6 @@ examples/*.shadowzarr.json
 
 # JavaScript
 node_modules/
+
+# DANDI scan progress
+scripts/dandi_scan/scan.sqlite
