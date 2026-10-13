@@ -35,8 +35,10 @@ import numpy as np
 import zarr
 from zarr.codecs import BloscCodec
 
+from .bytes_attributes import encode_attributes as encode_bytes_attributes
 from .chunk_index import MISSING, ChunkIndex, index_block_shape
 from .gen import Generator
+from .non_finite import encode_metadata
 from .sources import describe_source
 
 DEFAULT_CODECS = [{"name": "bytes", "configuration": {"endian": "little"}}]
@@ -137,7 +139,13 @@ class RfsBuilder:
     # -- Metadata --
 
     def set_metadata(self, path: str, meta: dict) -> None:
-        """Store a group's or array's zarr.json as given."""
+        """Store a group's or array's zarr.json as given.
+
+        Attributes that are bytes are written as base64 strings, since JSON
+        has no bytes; see zarrshadow.bytes_attributes.
+        """
+        if isinstance(meta.get("attributes"), dict):
+            meta = {**meta, "attributes": encode_bytes_attributes(meta["attributes"])}
         self.refs[metadata_key(path)] = json.dumps(meta, separators=(",", ":"))
 
     def add_group(self, path: str, attributes: dict | None = None) -> None:
@@ -364,7 +372,12 @@ class RfsBuilder:
         With record_sources, the size and ETag of every referenced file are
         recorded under "sources" so readers can detect a file that has changed.
         URLs used many times are replaced by templates.
+        Attributes that are NaN or infinite are written as strings; see
+        zarrshadow.non_finite.
         """
+        for key, value in self.refs.items():
+            if isinstance(value, str) and (key == "zarr.json" or key.endswith("/zarr.json")):
+                self.refs[key] = encode_metadata(value)
         extended = self.indexes or self.gen or self.selections
         rfs: dict[str, Any] = {"refs": self.refs, "version": 2 if extended else 1}
         if self.indexes:

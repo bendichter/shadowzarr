@@ -496,8 +496,38 @@ The generated JSON follows the [unified Zarr v3 convention](https://github.com/h
 | Spec location | Root `.specloc` attribute holds the plain path `"specifications"` |
 | Cached specifications | Scalar strings. HDMF before 2.0 wrote each as an array of one string, which is stored here as a scalar so that hdmf-zarr reads it |
 | References in attrs | `{"_REFERENCE": {"source": ".", "path": "/target"}}` |
-| NaN/Inf in attrs | Written as the float tokens `NaN`, `Infinity`, `-Infinity`, as zarr-python does |
+| NaN/Inf in attrs | Written as the strings `"NaN"`, `"Infinity"`, `"-Infinity"`, following the [Non-Finite Attributes convention](https://github.com/catalystneuro/zarr-non-finite-attributes). See [Attributes That Are Not Finite Numbers](#attributes-that-are-not-finite-numbers) |
+| Bytes in attrs | Byte strings that are not valid UTF-8, and HDF5 opaque values, written as `"base64:..."` following the [Bytes Attributes convention](https://github.com/catalystneuro/zarr-bytes-attributes). See [Attributes That Are Bytes](#attributes-that-are-bytes) |
 | Strings | `data_type: "string"` with `vlen-utf8` codec |
+
+## Attributes That Are Not Finite Numbers
+
+JSON has no representation for `NaN`, `Infinity`, or `-Infinity`. Python writes them as bare tokens, which zarr-python reads and most other Zarr implementations refuse, so that a group or array with one such attribute cannot be opened by zarrita.js or stored in Icechunk. Reference file systems store these attributes following the [Non-Finite Attributes Zarr convention](https://github.com/catalystneuro/zarr-non-finite-attributes):
+
+- A number that is not finite is written as the string `"NaN"`, `"Infinity"`, or `"-Infinity"`, the forms Zarr v3 defines for fill values.
+- A string with the same characters is written with the prefix `_str_`, so that a float stays distinct from a string holding the same text.
+- A group or array whose attributes are stored this way registers the convention in its `zarr_conventions` attribute. A node with no such number is written as it always was.
+
+Every generator does this, because `RfsBuilder.build` encodes the metadata it holds. zarr-python returns attributes as they are stored, and `decode_attributes` turns them back:
+
+```python
+from zarrshadow import decode_attributes, open_rfs
+
+root = open_rfs("example.zarrshadow")
+attributes = decode_attributes(root["acquisition/ElectricalSeries/data"].attrs)
+```
+
+hdmf-zarr decodes them itself from the version that implements the convention (https://github.com/hdmf-dev/hdmf-zarr/pull/408), so an NWB file read through `NWBZarrIO` needs nothing more. Earlier versions of hdmf-zarr read these attributes as strings. Reference files written before this change hold the bare tokens and still read in Python.
+
+## Attributes That Are Bytes
+
+JSON has no representation for bytes. An HDF5 attribute that holds text is written as a string, as before. A byte string that is not valid UTF-8, such as text in another encoding, and HDF5 opaque data, such as a digest, used to be dropped. They are now stored following the [Bytes Attributes Zarr convention](https://github.com/catalystneuro/zarr-bytes-attributes), a companion to Non-Finite Attributes:
+
+- Bytes are written as the string `"base64:"` followed by the bytes in base64.
+- A string that begins with `base64:` is written with the prefix `_str_`, so that it stays distinct from bytes.
+- A group or array whose attributes are stored this way registers the convention in its `zarr_conventions` attribute. A node with no bytes is written as it always was.
+
+`decode_attributes` decodes both conventions, in either order, so the example above returns bytes as `bytes`.
 
 ## Local chunk caching
 
@@ -576,6 +606,9 @@ zarrshadow/
 ├── h5_filters_to_codecs.py  # HDF5 filters → Zarr v3 codec pipeline
 ├── h5_chunk_utils.py        # HDF5 chunk byte range utilities
 ├── attr_conversion.py       # HDF5 attrs → JSON-serializable values
+├── non_finite.py            # NaN and infinite attributes, stored as valid JSON
+├── bytes_attributes.py      # Bytes attributes, stored as base64 strings
+├── encoded_attributes.py    # decode_attributes, for both attribute conventions
 └── url_resolver.py          # DANDI URL resolution with caching
 ```
 

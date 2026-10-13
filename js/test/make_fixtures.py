@@ -52,6 +52,8 @@ def hdf5_file(folder):
         # Python writes these attributes as bare NaN and Infinity, which JSON.parse refuses
         group["contiguous"].attrs["resolution"] = np.nan
         group["contiguous"].attrs["limits"] = np.array([-np.inf, np.inf])
+        group["contiguous"].attrs["operator"] = np.bytes_("Müller".encode("latin-1"))
+        group["contiguous"].attrs["note"] = "base64:AP8="
         f.create_dataset("strings", data=data["strings"], dtype=h5py.string_dtype())
         f.create_dataset("long_strings", data=data["long_strings"], dtype=h5py.string_dtype())
     paths = {
