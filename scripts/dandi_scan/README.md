@@ -1,6 +1,6 @@
 # DANDI scan
 
-Generates shadowzarr references for every HDF5 NWB file on [DANDI](https://dandiarchive.org) and uploads them to the `shadowzarr` R2 bucket, where they are served at `https://<domain>/dandi/blobs/<blob_id>/`, with `refs.json` at the top.
+Generates shadowzarr references for every HDF5 NWB file on [DANDI](https://dandiarchive.org) and uploads them to the `shadowzarr` R2 bucket in CatalystNeuro's Cloudflare account, where they are served at `https://refs.shadowzarr.org/dandi/blobs/<blob_id>/`, with `refs.json` at the top.
 
 A blob is the content of one file, and appears in every dandiset version that holds that file. So references are made once per blob, and a client finds them from the blob ID in the asset's S3 URL, `https://dandiarchive.s3.amazonaws.com/blobs/<xxx>/<yyy>/<blob_id>`.
 
@@ -8,7 +8,7 @@ A blob is the content of one file, and appears in every dandiset version that ho
 
 ```bash
 pip install -e ".[dev]" boto3
-export CLOUDFLARE_ACCOUNT_ID=...
+export CLOUDFLARE_ACCOUNT_ID=...  # CatalystNeuro's account
 # R2's S3 API (bucket-scoped "Object Read & Write" token), for parallel uploads
 export R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=...
 python scripts/dandi_scan/scan.py --workers 8
