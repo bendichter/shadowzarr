@@ -7,6 +7,10 @@ Float NaN and Inf are passed through as floats. RfsBuilder.build writes them as
 strings, following the Non-Finite Attributes convention, which keeps a float
 distinct from a string holding the same text; see zarrshadow.non_finite.
 
+A byte string that is valid UTF-8 is converted to text. One that is not, and
+opaque data, are passed through as bytes, which RfsBuilder writes as base64
+strings following the Bytes Attributes convention; see zarrshadow.bytes_attributes.
+
 Ported from lindi with adaptations for the unified zarr v3 convention.
 """
 
@@ -39,7 +43,10 @@ def h5_attr_to_zarr(
     elif isinstance(attr, str):
         return attr
     elif isinstance(attr, bytes):
-        return attr.decode("utf-8")
+        return _text_or_bytes(attr)
+    elif isinstance(attr, np.void) and attr.dtype.names is None:
+        # HDF5 opaque data
+        return attr.tobytes()
     elif isinstance(attr, np.ndarray):
         return _convert_ndarray_attr(attr, label=label)
     elif isinstance(attr, h5py.Reference):
@@ -68,9 +75,12 @@ def _convert_ndarray_attr(attr: np.ndarray, *, label: str) -> Any:
             raise ValueError(
                 f"Object array with non-string elements at {label}"
             )
-        return x
+        return _decode_bytes(x)
     elif kind in ("U", "S"):
         return _decode_bytes(attr.tolist())
+    elif kind == "V" and attr.dtype.names is None:
+        # HDF5 opaque data
+        return _opaque(attr)
     else:
         raise ValueError(f"Unexpected ndarray dtype {attr.dtype} at {label}")
 
@@ -89,9 +99,24 @@ def _h5_ref_to_zarr_attr(ref: h5py.Reference, *, h5f: h5py.File) -> dict:
 # -- Helpers --
 
 
+def _text_or_bytes(x: bytes) -> str | bytes:
+    """Text if the bytes are valid UTF-8, otherwise the bytes themselves."""
+    try:
+        return x.decode("utf-8")
+    except UnicodeDecodeError:
+        return bytes(x)
+
+
+def _opaque(attr: np.ndarray) -> list:
+    """An array of HDF5 opaque values as nested lists of bytes, kept as bytes even when they are valid UTF-8."""
+    if attr.ndim == 1:
+        return [item.tobytes() for item in attr]
+    return [_opaque(row) for row in attr]
+
+
 def _decode_bytes(x: Any) -> Any:
     if isinstance(x, bytes):
-        return x.decode("utf-8")
+        return _text_or_bytes(x)
     elif isinstance(x, str):
         return x
     elif isinstance(x, list):
@@ -101,7 +126,7 @@ def _decode_bytes(x: Any) -> Any:
 
 
 def _all_strings(x: Any) -> bool:
-    if isinstance(x, str):
+    if isinstance(x, (str, bytes)):
         return True
     elif isinstance(x, list):
         return all(_all_strings(y) for y in x)

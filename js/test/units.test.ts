@@ -2,7 +2,9 @@ import { describe, expect, test } from "vitest";
 
 import {
   arrayPath,
+  BYTES_ATTRIBUTES_UUID,
   decodeAttributes,
+  decodeBytes,
   decodeNonFinite,
   encodeMetadata,
   encodeNonFinite,
@@ -234,6 +236,32 @@ describe("attributes that are not finite numbers", () => {
     expect(
       decodeAttributes({ resolution: "NaN", name: "_str_NaN", zarr_conventions: [other, registration] }),
     ).toEqual({ resolution: Number.NaN, name: "NaN", zarr_conventions: [other] });
+  });
+
+  test("bytes are decoded for a node that registers Bytes Attributes, in either order with Non-Finite Attributes", () => {
+    const bytes = { uuid: BYTES_ATTRIBUTES_UUID };
+    const nonFinite = { uuid: NON_FINITE_ATTRIBUTES_UUID };
+    const stored = { resolution: "NaN", digest: "base64:EA==", a: "_str_NaN", b: "_str_base64:Q" };
+    for (const conventions of [[bytes, nonFinite], [nonFinite, bytes]]) {
+      expect(decodeAttributes({ ...stored, zarr_conventions: conventions })).toEqual({
+        resolution: Number.NaN,
+        digest: Uint8Array.from([0x10]),
+        a: "NaN",
+        b: "base64:Q",
+      });
+    }
+    // only bytes registered: the NaN strings are left as they are written
+    expect(decodeAttributes({ ...stored, zarr_conventions: [bytes] })).toEqual({
+      resolution: "NaN",
+      digest: Uint8Array.from([0x10]),
+      a: "_str_NaN",
+      b: "base64:Q",
+    });
+    expect(decodeAttributes({ note: "base64:AP8=" })).toEqual({ note: "base64:AP8=" });
+    for (const invalid of ["base64:AP8", "base64:AP9=", "base64:-_8=", "base64:AP8= "]) {
+      expect(() => decodeBytes(invalid)).toThrow();
+    }
+    expect(decodeBytes("base64:")).toEqual(new Uint8Array());
   });
 
   test("in consolidated metadata are encoded too", () => {

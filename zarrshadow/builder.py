@@ -35,6 +35,7 @@ import numpy as np
 import zarr
 from zarr.codecs import BloscCodec
 
+from .bytes_attributes import encode_attributes as encode_bytes_attributes
 from .chunk_index import MISSING, ChunkIndex, index_block_shape
 from .gen import Generator
 from .non_finite import encode_metadata
@@ -138,7 +139,13 @@ class RfsBuilder:
     # -- Metadata --
 
     def set_metadata(self, path: str, meta: dict) -> None:
-        """Store a group's or array's zarr.json as given."""
+        """Store a group's or array's zarr.json as given.
+
+        Attributes that are bytes are written as base64 strings, since JSON
+        has no bytes; see zarrshadow.bytes_attributes.
+        """
+        if isinstance(meta.get("attributes"), dict):
+            meta = {**meta, "attributes": encode_bytes_attributes(meta["attributes"])}
         self.refs[metadata_key(path)] = json.dumps(meta, separators=(",", ":"))
 
     def add_group(self, path: str, attributes: dict | None = None) -> None:
