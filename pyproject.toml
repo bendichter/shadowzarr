@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/bendichter/shadowzarr"
+Repository = "https://github.com/catalystneuro/shadowzarr"
 
 [project.optional-dependencies]
 tiff = [
