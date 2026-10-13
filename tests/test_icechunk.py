@@ -208,18 +208,30 @@ def test_file_outside_the_containers(recording, repo, tmp_path):
 
 
 def test_attributes_that_are_not_finite(repo):
-    """Icechunk refuses NaN and Infinity as bare words, so they are written as strings."""
+    """Icechunk refuses NaN and Infinity as bare words. They are written as strings, following the
+    Non-Finite Attributes convention, and read back as numbers."""
+    from shadowzarr import decode_attributes
+
+    def strict(text):
+        def refuse(token):
+            raise ValueError(f"{token} is not valid JSON")
+
+        return json.loads(text, parse_constant=refuse)
+
     builder = RfsBuilder()
     builder.add_group("", {"resolution": float("nan"), "limits": [float("-inf"), 1.5, float("inf")], "name": "a"})
     builder.add_array("data", shape=[2], data_type="float64", chunk_shape=[2], fill_value="NaN")
     rfs = builder.build()
-    assert "NaN" in rfs["refs"]["zarr.json"] and '"NaN"' not in rfs["refs"]["zarr.json"]
+    stored = strict(rfs["refs"]["zarr.json"])["attributes"]
+    assert stored["resolution"] == "NaN" and stored["limits"] == ["-Infinity", 1.5, "Infinity"]
 
     session = _committed(repo, rfs)
     root = zarr.open_group(session.store, mode="r")
-    assert dict(root.attrs) == {"resolution": "NaN", "limits": ["-Infinity", 1.5, "Infinity"], "name": "a"}
+    attributes = decode_attributes(root.attrs)
+    assert np.isnan(attributes.pop("resolution"))
+    assert attributes == {"limits": [float("-inf"), 1.5, float("inf")], "name": "a"}
     assert np.isnan(root["data"][...]).all()
-    assert json.loads(icechunk_to_rfs(session)["refs"]["zarr.json"])["attributes"]["resolution"] == "NaN"
+    assert strict(icechunk_to_rfs(session)["refs"]["zarr.json"])["attributes"]["resolution"] == "NaN"
 
 
 def test_virtual_nwb_file(repo, tmp_path):
