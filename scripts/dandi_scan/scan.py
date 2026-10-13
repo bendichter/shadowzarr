@@ -4,8 +4,11 @@
 
 Lists the .nwb assets of every public dandiset, in its draft and each
 published version, and keeps one entry per blob, since a blob is the same file
-wherever it appears. Each blob is processed by process_blob.py in its own
-process, which uploads the references to dandi/blobs/<blob_id>/ in the bucket.
+wherever it appears. Worker processes generate each blob's references and
+upload them to dandi/blobs/<blob_id>/ in the bucket (process_blob.py). A worker
+handles one blob after another, so the libraries are imported once, and it is
+replaced when a blob runs over its time limit, when it crashes, and after
+RECYCLE_AFTER blobs.
 
 Progress is kept in scan.sqlite next to this script (or SHADOWZARR_SCAN_DB):
 a blob that is done is not processed again, so a later run picks up only new
@@ -16,13 +19,13 @@ shadowzarr version changes.
 from __future__ import annotations
 
 import argparse
-import concurrent.futures
-import json
+import multiprocessing
+import multiprocessing.connection
 import os
 import sqlite3
-import subprocess
 import sys
 import time
+from collections import deque
 from importlib.metadata import version
 from pathlib import Path
 
@@ -111,18 +114,89 @@ def list_assets(db: sqlite3.Connection, only: list[str] | None) -> None:
         print(f"listed {dandiset} ({len(versions)} versions); {n} blobs so far", flush=True)
 
 
-def run_one(blob_id: str, timeout: int) -> dict:
-    try:
-        proc = subprocess.run(
-            [sys.executable, str(HERE / "process_blob.py"), blob_id],
-            capture_output=True, text=True, timeout=timeout,
-        )
-        lines = [line for line in proc.stdout.splitlines() if line.startswith("RESULT ")]
-        if lines:
-            return json.loads(lines[-1][len("RESULT "):])
-        return {"blob_id": blob_id, "error": f"crash: {proc.stderr[-500:]}"}
-    except subprocess.TimeoutExpired:
-        return {"blob_id": blob_id, "timeout": timeout}
+RECYCLE_AFTER = 200  # blobs a worker handles before it is replaced, so that memory cannot creep up
+
+
+def _worker(conn) -> None:
+    """Process blob IDs received on conn, one at a time, sending back each result."""
+    # Progress bars and warnings would fill the log; a result carries any error
+    os.environ["TQDM_DISABLE"] = "1"
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    os.dup2(devnull, 1)
+    os.dup2(devnull, 2)
+    sys.path.insert(0, str(HERE))
+    import process_blob
+
+    while (blob_id := conn.recv()) is not None:
+        try:
+            result = process_blob.process(blob_id)
+        except Exception as error:  # process() catches its own errors; this is a last resort
+            result = {"blob_id": blob_id, "error": f"crash: {type(error).__name__}: {error}"[:500]}
+        conn.send(result)
+
+
+class _Slot:
+    """A worker process and the blob it is working on."""
+
+    def __init__(self, context) -> None:
+        self.conn, child = context.Pipe()
+        self.process = context.Process(target=_worker, args=(child,), daemon=True)
+        self.process.start()
+        child.close()
+        self.blob: str | None = None
+        self.since = 0.0
+        self.done = 0
+
+    def assign(self, blob_id: str) -> None:
+        self.blob, self.since = blob_id, time.monotonic()
+        self.conn.send(blob_id)
+
+    def stop(self, kill: bool = False) -> None:
+        if kill:
+            self.process.kill()
+        else:
+            try:
+                self.conn.send(None)
+            except (BrokenPipeError, OSError):
+                pass
+        self.process.join(10)
+        if self.process.is_alive():
+            self.process.kill()
+            self.process.join()
+        self.conn.close()
+
+
+def run_all(todo: list[str], workers: int, timeout: int, on_result) -> None:
+    """Process every blob in todo with long-lived workers, calling on_result with each result."""
+    context = multiprocessing.get_context("spawn")
+    pending = deque(todo)
+    slots = [_Slot(context) for _ in range(min(workers, len(pending)))]
+    while pending or any(slot.blob for slot in slots):
+        for slot in slots:
+            if slot.blob is None and pending:
+                slot.assign(pending.popleft())
+        busy = {slot.conn: slot for slot in slots if slot.blob}
+        for conn in multiprocessing.connection.wait(list(busy), timeout=5):
+            slot = busy[conn]
+            try:
+                result = conn.recv()
+            except (EOFError, OSError):
+                # The worker died, for instance killed for using too much memory
+                result = {"blob_id": slot.blob, "error": f"crash: worker exited with code {slot.process.exitcode}"}
+            on_result(result)
+            slot.blob = None
+            slot.done += 1
+        now = time.monotonic()
+        for i, slot in enumerate(slots):
+            if slot.blob and now - slot.since > timeout:
+                on_result({"blob_id": slot.blob, "timeout": timeout})
+                slot.stop(kill=True)
+                slots[i] = _Slot(context)
+            elif slot.blob is None and (slot.done >= RECYCLE_AFTER or not slot.process.is_alive()):
+                slot.stop()
+                slots[i] = _Slot(context)
+    for slot in slots:
+        slot.stop()
 
 
 def record(db: sqlite3.Connection, result: dict) -> str:
@@ -169,12 +243,17 @@ def main() -> None:
     print(f"processing {len(todo)} blobs with {args.workers} workers, shadowzarr {SHADOWZARR_VERSION}", flush=True)
 
     counts: dict[str, int] = {}
-    with concurrent.futures.ThreadPoolExecutor(args.workers) as pool:
-        for result in pool.map(lambda b: run_one(b, args.timeout), todo):
-            status = record(db, result)
-            counts[status] = counts.get(status, 0) + 1
-            detail = result.get("error", "")[:120] if status != "done" else f"{result['generate_s']} s, {result['n_objects']} objects"
-            print(f"{status:7} {result['blob_id']} {detail}", flush=True)
+
+    def on_result(result: dict) -> None:
+        status = record(db, result)
+        counts[status] = counts.get(status, 0) + 1
+        if status == "done":
+            detail = f"{result['generate_s']} s, {result['n_objects']} objects"
+        else:
+            detail = (result.get("error") or f"timed out after {result.get('timeout')} s")[:120]
+        print(f"{status:7} {result['blob_id']} {detail}", flush=True)
+
+    run_all(todo, args.workers, args.timeout, on_result)
     print("SCAN_DONE", counts, flush=True)
 
 

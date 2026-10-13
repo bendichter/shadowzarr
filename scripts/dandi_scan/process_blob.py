@@ -4,7 +4,8 @@
 
 Writes the references to a temporary directory, uploads every file under
 dandi/blobs/<BLOB_ID>/, and prints one line, RESULT followed by JSON. scan.py
-runs this in its own process so that a read that hangs can be stopped.
+imports process() into long-lived worker processes, which it replaces when a
+blob runs over its time limit.
 
 Uploads use R2's S3 API when R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and
 CLOUDFLARE_ACCOUNT_ID are set, and the Cloudflare REST API with
@@ -13,6 +14,7 @@ CLOUDFLARE_API_TOKEN otherwise.
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import sys
@@ -91,7 +93,9 @@ class RestUploader:
                 response.raise_for_status()
 
 
+@functools.cache
 def uploader():
+    """One uploader per process, reused for every blob it handles."""
     if os.environ.get("R2_ACCESS_KEY_ID") and os.environ.get("R2_SECRET_ACCESS_KEY"):
         return S3Uploader()
     return RestUploader()
