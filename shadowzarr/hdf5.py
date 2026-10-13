@@ -489,12 +489,26 @@ def _detect_offset_shift(h5f: h5py.File, read_bytes: Callable[[int, int], bytes]
 
 
 def _spec_location(h5f: h5py.File) -> str | None:
-    """The path of the group that holds an NWB file's cached specifications."""
+    """The path of the group that holds an NWB file's cached specifications.
+
+    The .name of an object opened by reference makes HDF5 search the whole file
+    for a path to it, which for a remote file with many objects can take longer
+    than everything else. NWB writes the specifications to /specifications, so
+    that group is checked first by comparing objects, and the search is the
+    fallback.
+    """
     specloc = h5f.attrs.get(".specloc")
     if not isinstance(specloc, h5py.Reference):
         return None
     try:
-        return h5f[specloc].name.strip("/")
+        target = h5f[specloc]
+    except (KeyError, ValueError):
+        return None
+    usual = h5f.get("specifications")
+    if usual is not None and usual.id == target.id:
+        return "specifications"
+    try:
+        return target.name.strip("/")
     except (KeyError, ValueError):
         return None
 
